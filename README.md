@@ -105,4 +105,4 @@ L'application utilise des rôles pour sécuriser les routes. Assurez-vous de cr�
 
 ---
 
-**Développé par [thelazygenius404](https://github.com/thelazygenius404)**
+**Développé par [Bilal Elakry](https://github.com/thelazygenius404) et [Ichrak Laadimi](https://github.com/Ichrakld)**
