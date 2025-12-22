@@ -1,0 +1,48 @@
+﻿@model GestionCabinetMedical.Models.Consultation
+
+@{
+    ViewData["Title"] = "Nouvelle Consultation";
+}
+
+<div class="page-header">
+    <h1><i class="fas fa-stethoscope"></i> Nouvelle Consultation</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="DossierMedicalId" class="form-label"><i class="fas fa-folder"></i> Dossier Médical</label>
+                <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId"></select>
+                <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="DateConsultation" class="form-label"><i class="fas fa-calendar"></i> Date</label>
+                <input asp-for="DateConsultation" type="datetime-local" class="form-control" />
+                <span asp-validation-for="DateConsultation" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Diagnostic" class="form-label"><i class="fas fa-notes-medical"></i> Diagnostic</label>
+                <textarea asp-for="Diagnostic" class="form-control" rows="5"></textarea>
+                <span asp-validation-for="Diagnostic" class="text-danger"></span>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Enregistrer
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

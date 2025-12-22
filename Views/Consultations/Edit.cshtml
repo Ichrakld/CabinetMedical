@@ -1,0 +1,67 @@
+﻿@model GestionCabinetMedical.Models.Consultation
+
+@{
+    ViewData["Title"] = "Modifier Consultation";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="page-header mb-4">
+        <h1><i class="fas fa-edit text-warning"></i> Modifier la Consultation</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-secondary"><i class="fas fa-pen"></i> Informations de la consultation</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        <input type="hidden" asp-for="NumDetail" />
+
+                        <div class="mb-3">
+                            <label asp-for="DossierMedicalId" class="form-label fw-bold">
+                                <i class="fas fa-folder text-warning"></i> Dossier Médical (Patient)
+                            </label>
+                            <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId"></select>
+                            <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="DateConsultation" class="form-label fw-bold">
+                                <i class="fas fa-calendar-alt text-primary"></i> Date de la consultation
+                            </label>
+                            <input asp-for="DateConsultation" class="form-control" />
+                            <span asp-validation-for="DateConsultation" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Diagnostic" class="form-label fw-bold">
+                                <i class="fas fa-notes-medical text-success"></i> Diagnostic & Observations
+                            </label>
+                            <textarea asp-for="Diagnostic" class="form-control" rows="5" placeholder="Saisissez le diagnostic complet ici..."></textarea>
+                            <span asp-validation-for="Diagnostic" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a asp-action="Index" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

@@ -1,0 +1,86 @@
+﻿@model IEnumerable<GestionCabinetMedical.Models.RendezVou>
+
+@{
+    ViewData["Title"] = "Rendez-vous";
+}
+
+<style>
+    .rdv-card {
+        border-left: 4px solid #667eea;
+        transition: all 0.3s;
+    }
+
+        .rdv-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+    .status-enattente {
+        border-left-color: #ffc107;
+    }
+
+    .status-confirme {
+        border-left-color: #198754;
+    }
+
+    .status-annule {
+        border-left-color: #dc3545;
+    }
+
+    .status-termine {
+        border-left-color: #6c757d;
+    }
+</style>
+
+<div class="page-header">
+    <h1><i class="fas fa-calendar-check"></i> Gestion des Rendez-vous</h1>
+    <p class="mb-0">Planning des consultations</p>
+</div>
+
+<div class="mb-4">
+    <a asp-action="Create" class="btn btn-success btn-custom">
+        <i class="fas fa-plus-circle"></i> Nouveau Rendez-vous
+    </a>
+</div>
+
+<div class="row">
+    @if (Model != null && Model.Any())
+    {
+        @foreach (var item in Model)
+        {
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card rdv-card status-@item.Statut?.ToLower().Replace(" ", "")">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-calendar-alt"></i> RDV #@item.NumCom
+                        </h5>
+                        <p class="card-text">
+                            <strong><i class="fas fa-clock"></i> Date:</strong> @item.DateHeure.ToString("dd/MM/yyyy HH:mm")<br>
+                            <strong><i class="fas fa-user-injured"></i> Patient:</strong> @item.Patient?.IdNavigation?.Nom @item.Patient?.IdNavigation?.Prenom<br>
+                            <strong><i class="fas fa-user-md"></i> Médecin:</strong> @item.Medecin?.IdNavigation?.Nom<br>
+                            <strong><i class="fas fa-info-circle"></i> Statut:</strong>
+                            <span class="badge bg-warning">@item.Statut</span>
+                        </p>
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Details" asp-route-id="@item.NumCom" class="btn btn-sm btn-info">
+                                <i class="fas fa-eye"></i> Détails
+                            </a>
+                            <a asp-action="Edit" asp-route-id="@item.NumCom" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i> Modifier
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                <p>Aucun rendez-vous planifié</p>
+            </div>
+        </div>
+    }
+</div>

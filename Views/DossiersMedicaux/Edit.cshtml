@@ -1,0 +1,67 @@
+﻿@model GestionCabinetMedical.Models.DossierMedical
+
+@{
+    ViewData["Title"] = "Modifier Dossier";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="page-header mb-4">
+        <h1><i class="fas fa-edit text-warning"></i> Modifier le Dossier N° @Model.NumDossier</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-secondary"><i class="fas fa-pen"></i> Formulaire de modification</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        <input type="hidden" asp-for="NumDossier" />
+
+                        <div class="mb-3">
+                            <label asp-for="PatientId" class="form-label fw-bold">
+                                <i class="fas fa-user-injured text-primary"></i> Patient
+                            </label>
+                            <select asp-for="PatientId" class="form-select" asp-items="ViewBag.PatientId"></select>
+                            <span asp-validation-for="PatientId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="MedecinId" class="form-label fw-bold">
+                                <i class="fas fa-user-md text-success"></i> Médecin Traitant
+                            </label>
+                            <select asp-for="MedecinId" class="form-select" asp-items="ViewBag.MedecinId"></select>
+                            <span asp-validation-for="MedecinId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="GroupeSanguin" class="form-label fw-bold">
+                                <i class="fas fa-tint text-danger"></i> Groupe Sanguin
+                            </label>
+                            <input asp-for="GroupeSanguin" class="form-control" placeholder="Ex: A+, O-, AB+" />
+                            <span asp-validation-for="GroupeSanguin" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a asp-action="Index" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

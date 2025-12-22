@@ -1,0 +1,90 @@
+﻿@model GestionCabinetMedical.Models.Patient
+
+@{
+    ViewData["Title"] = "Nouveau Patient";
+}
+
+<div class="page-header">
+    <h1><i class="fas fa-user-plus"></i> Ajouter un Patient</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-user"></i> Nom</label>
+                        <input asp-for="IdNavigation.Nom" class="form-control" />
+                        <span asp-validation-for="IdNavigation.Nom" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-user"></i> Prénom</label>
+                        <input asp-for="IdNavigation.Prenom" class="form-control" />
+                        <span asp-validation-for="IdNavigation.Prenom" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-envelope"></i> Email</label>
+                        <input asp-for="IdNavigation.Email" type="email" class="form-control" />
+                        <span asp-validation-for="IdNavigation.Email" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-phone"></i> Téléphone</label>
+                        <input asp-for="IdNavigation.Telephone" class="form-control" />
+                        <span asp-validation-for="IdNavigation.Telephone" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-id-card"></i> N° Sécurité Sociale</label>
+                        <input asp-for="NumSecuriteSociale" class="form-control" />
+                        <span asp-validation-for="NumSecuriteSociale" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-lock"></i> Mot de passe</label>
+                        <input asp-for="IdNavigation.MotDePasse" type="password" class="form-control" />
+                        <span asp-validation-for="IdNavigation.MotDePasse" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input asp-for="IdNavigation.EstActif" class="form-check-input" />
+                    <label asp-for="IdNavigation.EstActif" class="form-check-label">Patient actif</label>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Enregistrer
+                </button>
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

@@ -1,0 +1,59 @@
+﻿@model GestionCabinetMedical.Models.Traitement
+
+@{
+    ViewData["Title"] = "Modifier Traitement";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="page-header mb-4">
+        <h1><i class="fas fa-edit text-warning"></i> Modifier le Traitement</h1>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-secondary"><i class="fas fa-prescription-bottle"></i> Informations du traitement</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Edit">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        <input type="hidden" asp-for="NumPro" />
+
+                        <div class="mb-3">
+                            <label asp-for="ConsultationId" class="form-label fw-bold">
+                                <i class="fas fa-file-medical text-primary"></i> Consultation associée
+                            </label>
+                            <select asp-for="ConsultationId" class="form-select" asp-items="ViewBag.ConsultationId"></select>
+                            <span asp-validation-for="ConsultationId" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="TypeTraitement" class="form-label fw-bold">
+                                <i class="fas fa-pills text-success"></i> Description du traitement
+                            </label>
+                            <textarea asp-for="TypeTraitement" class="form-control" rows="3" placeholder="Ex: Antibiotiques 500mg, repos 3 jours..."></textarea>
+                            <span asp-validation-for="TypeTraitement" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a asp-action="Index" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

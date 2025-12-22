@@ -1,0 +1,100 @@
+﻿@model GestionCabinetMedical.Models.Patient
+
+@{
+    ViewData["Title"] = "Détails Patient";
+}
+
+<style>
+    .detail-card {
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .detail-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .info-row {
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+    }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+    .info-label {
+        font-weight: 600;
+        color: #667eea;
+    }
+</style>
+
+<div class="detail-card">
+    <div class="detail-header">
+        <h2><i class="fas fa-user-circle"></i> Profil Patient</h2>
+        <p class="mb-0">Informations détaillées du patient</p>
+    </div>
+    <div class="card-body p-4">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-id-badge"></i> ID Patient</div>
+                    <div class="info-value">@Model.Id</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-user"></i> Nom</div>
+                    <div class="info-value">@Model.IdNavigation?.Nom</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-user"></i> Prénom</div>
+                    <div class="info-value">@Model.IdNavigation?.Prenom</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-envelope"></i> Email</div>
+                    <div class="info-value">@Model.IdNavigation?.Email</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-phone"></i> Téléphone</div>
+                    <div class="info-value">@Model.IdNavigation?.Telephone</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-id-card"></i> N° Sécurité Sociale</div>
+                    <div class="info-value"><span class="badge bg-info">@Model.NumSecuriteSociale</span></div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-toggle-on"></i> Statut</div>
+                    <div class="info-value">
+                        @if (Model.IdNavigation?.EstActif == true)
+                        {
+                            <span class="badge bg-success">Actif</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactif</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-between">
+            <a asp-action="Index" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la liste
+            </a>
+            @if (User.IsInRole("ADMIN") || User.IsInRole("MEDECIN"))
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Modifier
+                </a>
+            }
+        </div>
+    </div>
+</div>

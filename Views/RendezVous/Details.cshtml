@@ -1,0 +1,85 @@
+﻿@model GestionCabinetMedical.Models.RendezVou
+
+@{
+    ViewData["Title"] = "Détails Rendez-vous";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="page-header mb-4">
+        <h1><i class="fas fa-calendar-day text-info"></i> Détails du Rendez-vous</h1>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0 text-secondary">
+                <i class="fas fa-info-circle"></i> Rendez-vous N° @Model.NumCom
+            </h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 mb-3">
+                    <i class="fas fa-clock text-primary me-2"></i> Date et Heure
+                </dt>
+                <dd class="col-sm-9 mb-3 border-bottom pb-2">
+                    <span class="fs-5 fw-bold">@Model.DateHeure.ToString("dddd dd MMMM yyyy")</span>
+                    <span class="fs-5 ms-2 text-muted">à @Model.DateHeure.ToString("HH:mm")</span>
+                </dd>
+
+                <dt class="col-sm-3 mb-3">
+                    <i class="fas fa-user-injured text-warning me-2"></i> Patient
+                </dt>
+                <dd class="col-sm-9 mb-3 border-bottom pb-2">
+                    @if (Model.Patient?.IdNavigation != null)
+                    {
+                        <span class="fw-bold">@Model.Patient.IdNavigation.Nom @Model.Patient.IdNavigation.Prenom</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted fst-italic">Information non disponible</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-3 mb-3">
+                    <i class="fas fa-user-md text-success me-2"></i> Médecin
+                </dt>
+                <dd class="col-sm-9 mb-3 border-bottom pb-2">
+                    @if (Model.Medecin?.IdNavigation != null)
+                    {
+                        <span>Dr. @Model.Medecin.IdNavigation.Nom @Model.Medecin.IdNavigation.Prenom</span>
+                        @if (!string.IsNullOrEmpty(Model.Medecin.Specialite))
+                        {
+                            <span class="badge bg-secondary ms-2">@Model.Medecin.Specialite</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted fst-italic">Information non disponible</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-3 mb-3">
+                    <i class="fas fa-tasks text-secondary me-2"></i> Statut
+                </dt>
+                <dd class="col-sm-9 mb-3">
+                    @{
+                        string badgeClass = "bg-secondary";
+                        string status = Model.Statut?.ToLower() ?? "";
+                        if (status.Contains("confirm")) badgeClass = "bg-success";
+                        else if (status.Contains("attente")) badgeClass = "bg-warning text-dark";
+                        else if (status.Contains("annul")) badgeClass = "bg-danger";
+                    }
+                    <span class="badge @badgeClass fs-6">@Model.Statut</span>
+                </dd>
+            </dl>
+        </div>
+        <div class="card-footer bg-light text-end">
+            <a asp-action="Edit" asp-route-id="@Model?.NumCom" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <a asp-action="Index" class="btn btn-secondary ms-2">
+                <i class="fas fa-arrow-left"></i> Retour au calendrier
+            </a>
+        </div>
+    </div>
+</div>
