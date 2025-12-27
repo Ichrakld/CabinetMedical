@@ -62,6 +62,9 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumPro,TypeTraitement,ConsultationId")] Traitement traitement)
         {
+            // FIX: Remove validation for navigation property
+            ModelState.Remove("Consultation");
+
             if (ModelState.IsValid)
             {
                 _context.Add(traitement);
@@ -90,6 +93,9 @@ namespace GestionCabinetMedical.Controllers
         public async Task<IActionResult> Edit(int id, [Bind("NumPro,TypeTraitement,ConsultationId")] Traitement traitement)
         {
             if (id != traitement.NumPro) return NotFound();
+
+            // FIX: Remove validation for navigation property
+            ModelState.Remove("Consultation");
 
             if (ModelState.IsValid)
             {

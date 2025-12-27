@@ -35,7 +35,7 @@
                         <td>
                             @if (item.Patient?.IdNavigation != null)
                             {
-                                @item.Patient.IdNavigation.Nom @item.Patient.IdNavigation.Prenom
+                                @($"{item.Patient.IdNavigation.Nom} {item.Patient.IdNavigation.Prenom}")
                             }
                             else
                             {

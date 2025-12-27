@@ -49,24 +49,37 @@ namespace GestionCabinetMedical.Controllers
         // GET: Patients/Create
         public IActionResult Create()
         {
-            ViewData["Id"] = new SelectList(_context.Utilisateurs, "Id", "Id");
-            return View();
+            // On crée un nouveau patient avec un utilisateur vide mais Actif par défaut
+            var patient = new Patient
+            {
+                IdNavigation = new Utilisateur
+                {
+                    EstActif = true // <--- Ceci cochera la case automatiquement
+                }
+            };
+
+            return View(patient);
         }
 
         // POST: Patients/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,NumSecuriteSociale")] Patient patient)
+        public async Task<IActionResult> Create(Patient patient)
         {
+            // 1. Nous avons retiré [Bind(...)] pour que les données de IdNavigation (Nom, Prenom, etc.) soient prises en compte.
+
             if (ModelState.IsValid)
             {
+                // Entity Framework est intelligent : 
+                // Il va d'abord créer l'Utilisateur (IdNavigation), 
+                // récupérer son nouvel ID, 
+                // puis créer le Patient avec cet ID.
                 _context.Add(patient);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["Id"] = new SelectList(_context.Utilisateurs, "Id", "Id", patient.Id);
+
+            // Si le formulaire n'est pas valide, on réaffiche la page
             return View(patient);
         }
 
@@ -78,32 +91,66 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            var patient = await _context.Patients.FindAsync(id);
+            // CORRECTION : On remplace FindAsync par une requête avec Include
+            var patient = await _context.Patients
+                .Include(p => p.IdNavigation) // <--- C'est cette ligne qui charge le Nom et Prénom
+                .FirstOrDefaultAsync(m => m.Id == id);
+
             if (patient == null)
             {
                 return NotFound();
             }
-            ViewData["Id"] = new SelectList(_context.Utilisateurs, "Id", "Id", patient.Id);
+
+            // Plus besoin de ViewData["Id"] car on modifie directement l'objet lié
             return View(patient);
         }
 
         // POST: Patients/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,NumSecuriteSociale")] Patient patient)
+        public async Task<IActionResult> Edit(int id, Patient patient)
         {
             if (id != patient.Id)
             {
                 return NotFound();
             }
 
+            // 1. On enlève l'erreur "Mot de passe requis" car on ne le modifie pas ici
+            ModelState.Remove("IdNavigation.MotDePasse");
+
+            // 2. On enlève aussi les erreurs potentielles sur les listes déroulantes (Admin, Medecin, etc.)
+            ModelState.Remove("IdNavigation.Admin");
+            ModelState.Remove("IdNavigation.Medecin");
+            ModelState.Remove("IdNavigation.Patient");
+            ModelState.Remove("IdNavigation.Secretaire");
+
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(patient);
+                    // 3. IMPORTANT : On charge le patient existant depuis la base de données
+                    // avec ses infos utilisateur (pour récupérer l'ancien mot de passe)
+                    var patientExist = await _context.Patients
+                        .Include(p => p.IdNavigation)
+                        .FirstOrDefaultAsync(p => p.Id == id);
+
+                    if (patientExist == null)
+                    {
+                        return NotFound();
+                    }
+
+                    // 4. On met à jour manuellement les champs modifiés
+                    // (On ne touche PAS au MotDePasse, donc il reste tel quel en base)
+                    patientExist.NumSecuriteSociale = patient.NumSecuriteSociale;
+
+                    patientExist.IdNavigation.Nom = patient.IdNavigation.Nom;
+                    patientExist.IdNavigation.Prenom = patient.IdNavigation.Prenom;
+                    patientExist.IdNavigation.Email = patient.IdNavigation.Email;
+                    patientExist.IdNavigation.Telephone = patient.IdNavigation.Telephone;
+                    patientExist.IdNavigation.EstActif = patient.IdNavigation.EstActif;
+
+                    // 5. On sauvegarde
+                    _context.Update(patientExist);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
@@ -119,7 +166,8 @@ namespace GestionCabinetMedical.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["Id"] = new SelectList(_context.Utilisateurs, "Id", "Id", patient.Id);
+
+            // Si ça échoue encore, ceci affichera pourquoi
             return View(patient);
         }
 
@@ -147,10 +195,16 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var patient = await _context.Patients.FindAsync(id);
-            if (patient != null)
+            // Au lieu de chercher le Patient, on cherche l'Utilisateur correspondant
+            // (Ils partagent le même ID)
+            var utilisateur = await _context.Utilisateurs.FindAsync(id);
+
+            if (utilisateur != null)
             {
-                _context.Patients.Remove(patient);
+                // En supprimant l'Utilisateur, la base de données va 
+                // AUTOMATIQUEMENT supprimer la ligne dans la table Patient
+                // grâce à la contrainte "Cascade Delete".
+                _context.Utilisateurs.Remove(utilisateur);
             }
 
             await _context.SaveChangesAsync();

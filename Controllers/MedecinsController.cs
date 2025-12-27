@@ -50,29 +50,34 @@ namespace GestionCabinetMedical.Controllers
         // GET: Medecins/Create
         public IActionResult Create()
         {
-            // Utilisation de la méthode helper pour afficher les noms
-            PopulateUsersDropDownList();
             return View();
         }
 
         // POST: Medecins/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Specialite")] Medecin medecin)
+        public async Task<IActionResult> Create(Medecin medecin)
         {
-            // On vérifie si l'ID existe déjà dans la table Medecins pour éviter les doublons
-            if (MedecinExists(medecin.Id))
-            {
-                ModelState.AddModelError("Id", "Cet utilisateur est déjà enregistré comme médecin.");
-            }
+            // IMPORTANT : On retire [Bind] pour accepter IdNavigation (les infos utilisateur)
 
             if (ModelState.IsValid)
             {
+                // 1. On s'assure que l'utilisateur est marqué comme Actif
+                if (medecin.IdNavigation != null)
+                {
+                    medecin.IdNavigation.EstActif = true;
+                }
+
+                // 2. Entity Framework est intelligent.
+                // Puisque medecin.IdNavigation contient des données (Nom, Email...),
+                // Il va d'abord insérer l'Utilisateur, récupérer l'ID,
+                // puis insérer le Médecin lié à cet ID.
                 _context.Add(medecin);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            PopulateUsersDropDownList(medecin.Id);
+
+            // Si échec, on réaffiche le formulaire
             return View(medecin);
         }
 
@@ -100,18 +105,47 @@ namespace GestionCabinetMedical.Controllers
         // POST: Medecins/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Specialite")] Medecin medecin)
+        public async Task<IActionResult> Edit(int id, Medecin medecin)
         {
             if (id != medecin.Id)
             {
                 return NotFound();
             }
 
+            // 1. On ignore la validation du mot de passe (car on ne le modifie pas ici)
+            ModelState.Remove("IdNavigation.MotDePasse");
+
+            // On nettoie aussi les validations des autres relations pour éviter les erreurs inutiles
+            ModelState.Remove("IdNavigation.Admin");
+            ModelState.Remove("IdNavigation.Medecin");
+            ModelState.Remove("IdNavigation.Patient");
+            ModelState.Remove("IdNavigation.Secretaire");
+
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(medecin);
+                    // 2. On charge l'entité existante depuis la base de données
+                    var medecinExist = await _context.Medecins
+                        .Include(m => m.IdNavigation)
+                        .FirstOrDefaultAsync(m => m.Id == id);
+
+                    if (medecinExist == null)
+                    {
+                        return NotFound();
+                    }
+
+                    // 3. On met à jour les champs manuellement
+                    medecinExist.Specialite = medecin.Specialite;
+
+                    // Mise à jour des infos utilisateur
+                    medecinExist.IdNavigation.Nom = medecin.IdNavigation.Nom;
+                    medecinExist.IdNavigation.Prenom = medecin.IdNavigation.Prenom;
+                    medecinExist.IdNavigation.Email = medecin.IdNavigation.Email;
+                    medecinExist.IdNavigation.Telephone = medecin.IdNavigation.Telephone;
+
+                    // 4. On sauvegarde le tout
+                    _context.Update(medecinExist);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
@@ -128,18 +162,7 @@ namespace GestionCabinetMedical.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // En cas d'erreur, on recharge les infos de navigation pour réafficher le nom
-            var medecinReloaded = await _context.Medecins
-                .Include(m => m.IdNavigation)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
-            // On garde la spécialité modifiée par l'utilisateur si elle est valide
-            if (medecinReloaded != null)
-            {
-                medecinReloaded.Specialite = medecin.Specialite;
-                return View(medecinReloaded);
-            }
-
+            // Si échec, on recharge les données nécessaires pour la vue
             return View(medecin);
         }
 
@@ -168,10 +191,12 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var medecin = await _context.Medecins.FindAsync(id);
-            if (medecin != null)
+            // On supprime l'utilisateur global, pas juste le rôle médecin
+            var utilisateur = await _context.Utilisateurs.FindAsync(id);
+
+            if (utilisateur != null)
             {
-                _context.Medecins.Remove(medecin);
+                _context.Utilisateurs.Remove(utilisateur);
             }
 
             await _context.SaveChangesAsync();
@@ -181,19 +206,6 @@ namespace GestionCabinetMedical.Controllers
         private bool MedecinExists(int id)
         {
             return _context.Medecins.Any(e => e.Id == id);
-        }
-
-        // HELPER pour afficher "Nom Prénom" dans la liste déroulante du Create
-        private void PopulateUsersDropDownList(object selectedUser = null)
-        {
-            var usersQuery = _context.Utilisateurs
-                .OrderBy(u => u.Nom)
-                .Select(u => new {
-                    Id = u.Id,
-                    NomComplet = u.Nom + " " + u.Prenom + " (" + u.Email + ")"
-                });
-
-            ViewData["Id"] = new SelectList(usersQuery, "Id", "NomComplet", selectedUser);
         }
     }
 }

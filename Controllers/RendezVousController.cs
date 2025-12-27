@@ -61,12 +61,21 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumCom,DateHeure,Statut,MedecinId,PatientId")] RendezVou rendezVou)
         {
+            // 1. Remove validation for Navigation Properties
+            // We only send the IDs (MedecinId, PatientId), so the objects (Medecin, Patient) are null
+            // This stops the validator from rejecting the form.
+            ModelState.Remove("Medecin");
+            ModelState.Remove("Patient");
+
             if (ModelState.IsValid)
             {
                 _context.Add(rendezVou);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
+            // If we get here, something else is wrong.
+            // The view reloads, displaying validation errors.
             PopulateDropdowns(rendezVou.MedecinId, rendezVou.PatientId);
             return View(rendezVou);
         }

@@ -70,13 +70,21 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumDossier,GroupeSanguin,PatientId,MedecinId")] DossierMedical dossierMedical)
         {
+            // IMPORTANT : On retire la validation des objets de navigation.
+            // Le formulaire n'envoie que les IDs (PatientId, MedecinId), donc les objets complets sont null.
+            // Sans ces deux lignes, ModelState.IsValid sera toujours faux et rien ne s'enregistrera.
+            ModelState.Remove("Patient");
+            ModelState.Remove("Medecin");
+
             if (ModelState.IsValid)
             {
                 _context.Add(dossierMedical);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            // Reload dropdowns if validation fails
+
+            // Si le formulaire est invalide (ex: champ manquant), on recharge les listes déroulantes
+            // pour que l'utilisateur puisse corriger sans tout perdre.
             PopulateDropdowns(dossierMedical.MedecinId, dossierMedical.PatientId);
             return View(dossierMedical);
         }
@@ -110,6 +118,11 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
+            // CORRECTION : On retire les objets de navigation de la validation
+            // car le formulaire n'envoie que les IDs (PatientId, MedecinId)
+            ModelState.Remove("Patient");
+            ModelState.Remove("Medecin");
+
             if (ModelState.IsValid)
             {
                 try
@@ -131,7 +144,7 @@ namespace GestionCabinetMedical.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Reload dropdowns if validation fails
+            // Si ça échoue encore, on recharge les listes
             PopulateDropdowns(dossierMedical.MedecinId, dossierMedical.PatientId);
             return View(dossierMedical);
         }

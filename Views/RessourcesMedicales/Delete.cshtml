@@ -1,34 +1,65 @@
 ﻿@model GestionCabinetMedical.Models.RessourceMedicale
 
 @{
-    ViewData["Title"] = "Delete";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "Supprimer une Ressource";
 }
 
-<h1>Delete</h1>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
 
-<h3>Are you sure you want to delete this?</h3>
-<div>
-    <h4>RessourceMedicale</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Nom)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Nom)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Quantite)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Quantite)
-        </dd>
-    </dl>
-    
-    <form asp-action="Delete">
-        <input type="hidden" asp-for="Id" />
-        <input type="submit" value="Delete" class="btn btn-danger" /> |
-        <a asp-action="Index">Back to List</a>
-    </form>
+            <div class="text-center mb-4">
+                <h1 class="text-danger"><i class="fas fa-trash-alt"></i> Suppression de Stock</h1>
+                <p class="lead text-muted">Êtes-vous sûr de vouloir supprimer cette ressource médicale ?</p>
+            </div>
+
+            <div class="alert alert-warning border-warning shadow-sm" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Attention :</strong> Cette action est irréversible. La suppression retirera définitivement cet équipement de l'inventaire.
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0 text-secondary"><i class="fas fa-box"></i> Détails du matériel</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">Nom du matériel</dt>
+                        <dd class="col-sm-8 fw-bold">
+                            @Html.DisplayFor(model => model.Nom)
+                        </dd>
+
+                        <dt class="col-sm-4 text-muted">Quantité en stock</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.Quantite < 10)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-exclamation-circle"></i> Stock Critique : @Model.Quantite
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> @Model.Quantite unités
+                                </span>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <form asp-action="Delete" class="text-center">
+                <input type="hidden" asp-for="Id" />
+
+                <button type="submit" class="btn btn-danger btn-lg px-4 me-2">
+                    <i class="fas fa-trash-alt me-2"></i> Confirmer la suppression
+                </button>
+
+                <a asp-action="Index" class="btn btn-secondary btn-lg px-4">
+                    <i class="fas fa-arrow-left me-2"></i> Annuler
+                </a>
+            </form>
+
+        </div>
+    </div>
 </div>

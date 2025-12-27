@@ -17,7 +17,7 @@ public partial class Utilisateur
 
     public string? Telephone { get; set; }
 
-    public bool? EstActif { get; set; }
+    public bool EstActif { get; set; } = true;
 
     public virtual Admin? Admin { get; set; }
 

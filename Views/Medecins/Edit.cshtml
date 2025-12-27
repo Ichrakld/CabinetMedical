@@ -19,16 +19,33 @@
                 <div class="card-body">
                     <form asp-action="Edit">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
                         <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="IdNavigation.Id" />
 
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Nom</label>
-                                <input type="text" class="form-control bg-light" value="@Model.IdNavigation?.Nom" readonly />
+                                <label asp-for="IdNavigation.Nom" class="form-label fw-bold">Nom</label>
+                                <input asp-for="IdNavigation.Nom" class="form-control" />
+                                <span asp-validation-for="IdNavigation.Nom" class="text-danger"></span>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Prénom</label>
-                                <input type="text" class="form-control bg-light" value="@Model.IdNavigation?.Prenom" readonly />
+                                <label asp-for="IdNavigation.Prenom" class="form-label fw-bold">Prénom</label>
+                                <input asp-for="IdNavigation.Prenom" class="form-control" />
+                                <span asp-validation-for="IdNavigation.Prenom" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="IdNavigation.Email" class="form-label fw-bold">Email</label>
+                                <input asp-for="IdNavigation.Email" class="form-control" />
+                                <span asp-validation-for="IdNavigation.Email" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="IdNavigation.Telephone" class="form-label fw-bold">Téléphone</label>
+                                <input asp-for="IdNavigation.Telephone" class="form-control" />
+                                <span asp-validation-for="IdNavigation.Telephone" class="text-danger"></span>
                             </div>
                         </div>
 

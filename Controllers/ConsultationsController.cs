@@ -55,11 +55,13 @@ namespace GestionCabinetMedical.Controllers
             return View();
         }
 
-        // POST: Consultations/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumDetail,Diagnostic,DateConsultation,DossierMedicalId")] Consultation consultation)
         {
+            // FIX: Remove validation for the navigation property
+            ModelState.Remove("DossierMedical");
+
             if (ModelState.IsValid)
             {
                 _context.Add(consultation);
@@ -82,12 +84,14 @@ namespace GestionCabinetMedical.Controllers
             return View(consultation);
         }
 
-        // POST: Consultations/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("NumDetail,Diagnostic,DateConsultation,DossierMedicalId")] Consultation consultation)
         {
             if (id != consultation.NumDetail) return NotFound();
+
+            // FIX: Remove validation here too
+            ModelState.Remove("DossierMedical");
 
             if (ModelState.IsValid)
             {

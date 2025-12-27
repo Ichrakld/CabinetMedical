@@ -20,28 +20,48 @@
                     <form asp-action="Create">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-                        <div class="mb-3">
-                            <label asp-for="Id" class="form-label fw-bold">
-                                <i class="fas fa-user text-primary"></i> Sélectionner l'utilisateur
-                            </label>
-                            <select asp-for="Id" class="form-select" asp-items="ViewBag.Id"></select>
-                            <div class="form-text">Choisissez un utilisateur existant pour l'inscrire comme médecin.</div>
+                        <h6 class="text-muted mb-3">Informations de connexion</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nom</label>
+                                <input asp-for="IdNavigation.Nom" class="form-control" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Prénom</label>
+                                <input asp-for="IdNavigation.Prenom" class="form-control" required />
+                            </div>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input asp-for="IdNavigation.Email" type="email" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Mot de passe provisoire</label>
+                            <input asp-for="IdNavigation.MotDePasse" type="password" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Téléphone</label>
+                            <input asp-for="IdNavigation.Telephone" class="form-control" />
+                        </div>
+
+                        <hr />
+
+                        <h6 class="text-muted mb-3">Informations Professionnelles</h6>
                         <div class="mb-3">
                             <label asp-for="Specialite" class="form-label fw-bold">
                                 <i class="fas fa-stethoscope text-success"></i> Spécialité
                             </label>
-                            <input asp-for="Specialite" class="form-control" placeholder="Ex: Pédiatrie" />
+                            <input asp-for="Specialite" class="form-control" placeholder="Ex: Pédiatrie" required />
                             <span asp-validation-for="Specialite" class="text-danger"></span>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <a asp-action="Index" class="btn btn-secondary me-md-2">
-                                <i class="fas fa-times"></i> Annuler
-                            </a>
+                            <a asp-action="Index" class="btn btn-secondary me-md-2">Annuler</a>
                             <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save"></i> Ajouter
+                                <i class="fas fa-save"></i> Créer Médecin & Utilisateur
                             </button>
                         </div>
                     </form>
@@ -50,9 +70,3 @@
         </div>
     </div>
 </div>
-
-@section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
-}
