@@ -1,64 +1,335 @@
 ﻿@model GestionCabinetMedical.Models.DossierMedical
 
 @{
-    ViewData["Title"] = "Détails Dossier";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = $"Dossier Médical #{Model.NumDossier}";
 }
 
-<div class="container mt-4">
-    <div class="page-header mb-4">
-        <h1><i class="fas fa-file-medical-alt text-info"></i> Détails du Dossier N° @Model.NumDossier</h1>
+<style>
+    .card-custom {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .medical-badge {
+        font-size: 1.5rem;
+        padding: 10px 20px;
+    }
+
+    .allergie-tag {
+        font-size: 0.9rem;
+        padding: 8px 15px;
+        margin: 3px;
+        border-radius: 20px;
+    }
+
+    .consultation-card {
+        border-left: 4px solid #007bff;
+        transition: transform 0.2s;
+    }
+
+        .consultation-card:hover {
+            transform: translateX(5px);
+        }
+
+    .traitement-badge {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        margin: 2px;
+        white-space: normal;
+        text-align: left;
+    }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Dossiers Médicaux</a></li>
+            <li class="breadcrumb-item active">Dossier #@Model.NumDossier</li>
+        </ol>
+    </nav>
+    <div class="btn-group">
+        <a asp-action="Edit" asp-route-id="@Model.NumDossier" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Modifier
+        </a>
+        <a asp-controller="Consultations" asp-action="Create" asp-route-dossierId="@Model.NumDossier" class="btn btn-success">
+            <i class="fas fa-plus"></i> Nouvelle Consultation
+        </a>
+        <button class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print"></i> Imprimer
+        </button>
     </div>
+</div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0 text-secondary"><i class="fas fa-info-circle"></i> Informations Générales</h5>
+<!-- Carte principale du dossier -->
+<div class="card card-custom mb-4">
+    <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-folder-open"></i> Dossier Médical #@Model.NumDossier
+            </h4>
+            <span class="badge bg-light text-primary fs-6">
+                @(Model.Consultations?.Count ?? 0) consultation(s)
+            </span>
         </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 mb-3">
-                    <i class="fas fa-user-injured text-primary me-2"></i> @Html.DisplayNameFor(model => model.Patient)
-                </dt>
-                <dd class="col-sm-9 mb-3 border-bottom pb-2">
-                    @if (Model.Patient?.IdNavigation != null)
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Informations Patient -->
+            <div class="col-md-4 border-end">
+                <h5 class="text-primary mb-3"><i class="fas fa-user-injured"></i> Patient</h5>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                         style="width: 60px; height: 60px; font-size: 1.5rem;">
+                        @(Model.Patient?.IdNavigation?.Nom?.Substring(0, 1))@(Model.Patient?.IdNavigation?.Prenom?.Substring(0, 1))
+                    </div>
+                    <div>
+                        <h5 class="mb-0">@Model.Patient?.IdNavigation?.Nom @Model.Patient?.IdNavigation?.Prenom</h5>
+                        <small class="text-muted">N° Sécu: @Model.Patient?.NumSecuriteSociale</small>
+                    </div>
+                </div>
+                <p class="mb-1"><i class="fas fa-envelope text-muted"></i> @Model.Patient?.IdNavigation?.Email</p>
+                <p class="mb-0"><i class="fas fa-phone text-muted"></i> @Model.Patient?.IdNavigation?.Telephone</p>
+                <a asp-controller="Patients" asp-action="Details" asp-route-id="@Model.PatientId" class="btn btn-sm btn-outline-primary mt-3">
+                    <i class="fas fa-eye"></i> Voir profil complet
+                </a>
+            </div>
+
+            <!-- Informations Médicales -->
+            <div class="col-md-4 border-end">
+                <h5 class="text-danger mb-3"><i class="fas fa-heartbeat"></i> Informations Médicales</h5>
+
+                <!-- Groupe Sanguin -->
+                <div class="mb-3">
+                    <label class="text-muted small d-block">GROUPE SANGUIN</label>
+                    @if (!string.IsNullOrEmpty(Model.GroupeSanguin))
                     {
-                        <span class="fw-bold">@Model.Patient.IdNavigation.Nom @Model.Patient.IdNavigation.Prenom</span>
+                        <span class="badge bg-danger medical-badge">
+                            <i class="fas fa-tint"></i> @Model.GroupeSanguin
+                        </span>
                     }
                     else
                     {
-                        <span class="text-muted fst-italic">Information non disponible</span>
+                        <span class="badge bg-secondary">Non renseigné</span>
                     }
-                </dd>
+                </div>
 
-                <dt class="col-sm-3 mb-3">
-                    <i class="fas fa-user-md text-success me-2"></i> @Html.DisplayNameFor(model => model.Medecin)
-                </dt>
-                <dd class="col-sm-9 mb-3 border-bottom pb-2">
-                    @if (Model.Medecin?.IdNavigation != null)
+                <!-- Allergies -->
+                <div class="mb-3">
+                    <label class="text-muted small d-block">
+                        <i class="fas fa-exclamation-triangle text-warning"></i> ALLERGIES
+                    </label>
+                    @if (!string.IsNullOrEmpty(Model.Allergies))
                     {
-                        <span>Dr. @Model.Medecin.IdNavigation.Nom @Model.Medecin.IdNavigation.Prenom</span>
+                        <div class="d-flex flex-wrap">
+                            @foreach (var allergie in Model.Allergies.Split(','))
+                            {
+                                <span class="badge bg-warning text-dark allergie-tag">
+                                    <i class="fas fa-exclamation-circle"></i> @allergie.Trim()
+                                </span>
+                            }
+                        </div>
                     }
                     else
                     {
-                        <span class="text-muted fst-italic">Information non disponible</span>
+                        <span class="text-success"><i class="fas fa-check-circle"></i> Aucune allergie connue</span>
                     }
-                </dd>
+                </div>
 
-                <dt class="col-sm-3 mb-3">
-                    <i class="fas fa-tint text-danger me-2"></i> @Html.DisplayNameFor(model => model.GroupeSanguin)
-                </dt>
-                <dd class="col-sm-9 mb-3">
-                    <span class="badge bg-danger fs-6">@Html.DisplayFor(model => model.GroupeSanguin)</span>
-                </dd>
-            </dl>
+                <!-- Antécédents -->
+                <div class="mb-3">
+                    <label class="text-muted small d-block">
+                        <i class="fas fa-history text-info"></i> ANTÉCÉDENTS MÉDICAUX
+                    </label>
+                    @if (!string.IsNullOrEmpty(Model.AntecedentsMedicaux))
+                    {
+                        <div class="alert alert-info mb-0 py-2">
+                            <small>@Model.AntecedentsMedicaux</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Non renseigné</span>
+                    }
+                </div>
+            </div>
+
+            <!-- Médecin Traitant -->
+            <div class="col-md-4">
+                <h5 class="text-success mb-3"><i class="fas fa-user-md"></i> Médecin Traitant</h5>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3"
+                         style="width: 60px; height: 60px;">
+                        <i class="fas fa-user-md fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Dr. @Model.Medecin?.IdNavigation?.Nom @Model.Medecin?.IdNavigation?.Prenom</h5>
+                        <span class="badge bg-info">@Model.Medecin?.Specialite</span>
+                    </div>
+                </div>
+                <p class="mb-1"><i class="fas fa-envelope text-muted"></i> @Model.Medecin?.IdNavigation?.Email</p>
+                <p class="mb-0"><i class="fas fa-phone text-muted"></i> @Model.Medecin?.IdNavigation?.Telephone</p>
+            </div>
         </div>
-        <div class="card-footer bg-light text-end">
-            <a asp-action="Edit" asp-route-id="@Model?.NumDossier" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Modifier
-            </a>
-            <a asp-action="Index" class="btn btn-secondary ms-2">
-                <i class="fas fa-arrow-left"></i> Retour à la liste
-            </a>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-stethoscope fa-2x mb-2"></i>
+                <h3>@(Model.Consultations?.Count ?? 0)</h3>
+                <p class="mb-0">Consultations</p>
+            </div>
         </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-pills fa-2x mb-2"></i>
+                <h3>@(Model.Consultations?.Sum(c => c.Traitements?.Count ?? 0) ?? 0)</h3>
+                <p class="mb-0">Traitements Prescrits</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar fa-2x mb-2"></i>
+                <h3>
+                    @if (Model.Consultations?.Any() == true)
+                    {
+                        @Model.Consultations.Max(c => c.DateConsultation).ToString("dd/MM/yyyy")
+                    }
+                    else
+                    {
+                        <span>-</span>
+                    }
+                </h3>
+                <p class="mb-0">Dernière Consultation</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des consultations -->
+<div class="card card-custom mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-stethoscope text-info"></i> Historique des Consultations</h5>
+        <a asp-controller="Consultations" asp-action="Create" asp-route-dossierId="@Model.NumDossier" class="btn btn-sm btn-success">
+            <i class="fas fa-plus"></i> Nouvelle Consultation
+        </a>
+    </div>
+    <div class="card-body">
+        @if (Model.Consultations?.Any() == true)
+        {
+            @foreach (var consultation in Model.Consultations.OrderByDescending(c => c.DateConsultation))
+            {
+                <div class="card consultation-card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-calendar-alt text-primary"></i>
+                            <strong>@consultation.DateConsultation.ToString("dddd dd MMMM yyyy à HH:mm")</strong>
+                            <span class="badge bg-secondary ms-2">Consultation #@consultation.NumDetail</span>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <a asp-controller="Consultations" asp-action="Details" asp-route-id="@consultation.NumDetail" class="btn btn-outline-info">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a asp-controller="Consultations" asp-action="Edit" asp-route-id="@consultation.NumDetail" class="btn btn-outline-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a asp-controller="Traitements" asp-action="Create" asp-route-consultationId="@consultation.NumDetail" class="btn btn-outline-success">
+                                <i class="fas fa-plus"></i> Traitement
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Diagnostic -->
+                            <div class="col-md-6">
+                                <h6 class="text-primary"><i class="fas fa-diagnoses"></i> Diagnostic</h6>
+                                @if (!string.IsNullOrEmpty(consultation.Diagnostic))
+                                {
+                                    <p class="mb-2">@consultation.Diagnostic</p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted mb-2"><i class="fas fa-info-circle"></i> Non renseigné</p>
+                                }
+
+                                <!-- Notes -->
+                                @if (!string.IsNullOrEmpty(consultation.Notes))
+                                {
+                                    <h6 class="text-secondary mt-3"><i class="fas fa-sticky-note"></i> Notes</h6>
+                                    <p class="text-muted small mb-0">@consultation.Notes</p>
+                                }
+                            </div>
+
+                            <!-- Traitements -->
+                            <div class="col-md-6">
+                                <h6 class="text-success">
+                                    <i class="fas fa-pills"></i> Traitements Prescrits
+                                    <span class="badge bg-success">@(consultation.Traitements?.Count ?? 0)</span>
+                                </h6>
+                                @if (consultation.Traitements?.Any() == true)
+                                {
+                                    <div class="d-flex flex-wrap">
+                                        @foreach (var traitement in consultation.Traitements)
+                                        {
+                                            <span class="badge bg-success traitement-badge" title="@traitement.TypeTraitement">
+                                                <i class="fas fa-prescription"></i>
+                                                @if (traitement.TypeTraitement.Length > 50)
+                                                {
+                                                    @(traitement.TypeTraitement.Substring(0, 50) + "...")
+                                                }
+                                                else
+                                                {
+                                                    @traitement.TypeTraitement
+                                                }
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">
+                                        <i class="fas fa-info-circle"></i> Aucun traitement prescrit
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-stethoscope fa-3x mb-3"></i>
+                <p>Aucune consultation enregistrée</p>
+                <a asp-controller="Consultations" asp-action="Create" asp-route-dossierId="@Model.NumDossier" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Créer la première consultation
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Boutons d'action -->
+<div class="d-flex justify-content-between">
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model.NumDossier" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Modifier
+        </a>
+        <a asp-action="Delete" asp-route-id="@Model.NumDossier" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Supprimer
+        </a>
     </div>
 </div>

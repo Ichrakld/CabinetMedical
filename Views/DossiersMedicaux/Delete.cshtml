@@ -1,64 +1,84 @@
 ﻿@model GestionCabinetMedical.Models.DossierMedical
 
 @{
-    ViewData["Title"] = "Supprimer un Dossier";
+    ViewData["Title"] = "Supprimer Dossier Médical";
 }
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="text-danger"><i class="fas fa-trash"></i> Supprimer le Dossier Médical</h1>
+</div>
 
-            <div class="text-center mb-4">
-                <h1 class="text-danger"><i class="fas fa-file-medical-alt"></i> Suppression de Dossier</h1>
-                <p class="lead text-muted">Êtes-vous sûr de vouloir supprimer ce dossier médical ?</p>
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle fa-lg"></i>
+    <strong>Attention!</strong> Cette action est irréversible. Toutes les consultations et traitements associés seront également supprimés.
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-folder"></i> Dossier #@Model.NumDossier</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary"><i class="fas fa-user"></i> Patient</h6>
+                <p>
+                    <strong>@Model.Patient?.IdNavigation?.Nom @Model.Patient?.IdNavigation?.Prenom</strong>
+                    <br />
+                    <small class="text-muted">N° Sécu: @Model.Patient?.NumSecuriteSociale</small>
+                </p>
+
+                <h6 class="text-success mt-3"><i class="fas fa-user-md"></i> Médecin Traitant</h6>
+                <p>Dr. @Model.Medecin?.IdNavigation?.Nom @Model.Medecin?.IdNavigation?.Prenom</p>
             </div>
+            <div class="col-md-6">
+                <h6 class="text-danger"><i class="fas fa-heartbeat"></i> Informations Médicales</h6>
+                <p>
+                    <strong>Groupe Sanguin:</strong>
+                    @if (!string.IsNullOrEmpty(Model.GroupeSanguin))
+                    {
+                        <span class="badge bg-danger">@Model.GroupeSanguin</span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">-</span>
+                    }
+                </p>
 
-            <div class="alert alert-warning border-warning shadow-sm" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Attention :</strong> Cette action est irréversible. L'historique médical associé à ce numéro de dossier sera perdu.
+                @if (!string.IsNullOrEmpty(Model.Allergies))
+                {
+                    <p>
+                        <strong><i class="fas fa-exclamation-triangle text-warning"></i> Allergies:</strong><br />
+                        @foreach (var allergie in Model.Allergies.Split(','))
+                        {
+                            <span class="badge bg-warning text-dark me-1">@allergie.Trim()</span>
+                        }
+                    </p>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.AntecedentsMedicaux))
+                {
+                    <p>
+                        <strong><i class="fas fa-history text-info"></i> Antécédents:</strong><br />
+                        <small>@Model.AntecedentsMedicaux</small>
+                    </p>
+                }
             </div>
+        </div>
 
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0 text-secondary"><i class="fas fa-info-circle"></i> Détails du Dossier N° @Model.NumDossier</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Patient</dt>
-                        <dd class="col-sm-8 fw-bold text-primary">
-                            <i class="fas fa-user-injured me-1"></i>
-                            @Html.DisplayFor(model => model.Patient.IdNavigation.Nom)
-                            @Html.DisplayFor(model => model.Patient.IdNavigation.Prenom)
-                        </dd>
-
-                        <dt class="col-sm-4 text-muted">Médecin Traitant</dt>
-                        <dd class="col-sm-8">
-                            <i class="fas fa-user-md me-1"></i>
-                            Dr. @Html.DisplayFor(model => model.Medecin.IdNavigation.Nom)
-                        </dd>
-
-                        <dt class="col-sm-4 text-muted">Groupe Sanguin</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-danger">
-                                <i class="fas fa-tint me-1"></i> @Html.DisplayFor(model => model.GroupeSanguin)
-                            </span>
-                        </dd>
-                    </dl>
-                </div>
-            </div>
-
-            <form asp-action="Delete" class="text-center">
-                <input type="hidden" asp-for="NumDossier" />
-
-                <button type="submit" class="btn btn-danger btn-lg px-4 me-2">
-                    <i class="fas fa-trash-alt me-2"></i> Confirmer la suppression
-                </button>
-
-                <a asp-action="Index" class="btn btn-secondary btn-lg px-4">
-                    <i class="fas fa-arrow-left me-2"></i> Annuler
-                </a>
-            </form>
-
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="fas fa-info-circle"></i>
+            <strong>@(Model.Consultations?.Count ?? 0)</strong> consultation(s) et
+            <strong>@(Model.Consultations?.Sum(c => c.Traitements?.Count ?? 0) ?? 0)</strong> traitement(s) seront supprimés.
         </div>
     </div>
 </div>
+
+<form asp-action="Delete" class="mt-4">
+    <input type="hidden" asp-for="NumDossier" />
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Annuler
+    </a>
+    <button type="submit" class="btn btn-danger">
+        <i class="fas fa-trash"></i> Confirmer la suppression
+    </button>
+</form>

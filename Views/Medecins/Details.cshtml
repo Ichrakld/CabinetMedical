@@ -1,60 +1,379 @@
 ﻿@model GestionCabinetMedical.Models.Medecin
 
 @{
-    ViewData["Title"] = "Détails Médecin";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = $"Dr. {Model.IdNavigation?.Nom} {Model.IdNavigation?.Prenom}";
 }
 
-<div class="container mt-4">
-    <div class="page-header mb-4">
-        <h1><i class="fas fa-user-md text-info"></i> Profil du Médecin</h1>
+<style>
+    .doctor-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .stat-card {
+        border-radius: 15px;
+        transition: transform 0.2s;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .card-custom {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .schedule-item {
+        border-left: 4px solid #28a745;
+        padding-left: 15px;
+        margin-bottom: 10px;
+    }
+
+        .schedule-item.past {
+            border-left-color: #6c757d;
+            opacity: 0.7;
+        }
+
+        .schedule-item.current {
+            border-left-color: #007bff;
+            background-color: #e3f2fd;
+            padding: 10px 15px;
+            border-radius: 0 10px 10px 0;
+        }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Médecins</a></li>
+            <li class="breadcrumb-item active">Dr. @Model.IdNavigation?.Nom</li>
+        </ol>
+    </nav>
+    <div class="btn-group">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Modifier
+        </a>
+        <a asp-controller="RendezVous" asp-action="Index" asp-route-medecinId="@Model.Id" class="btn btn-info">
+            <i class="fas fa-calendar-alt"></i> Voir Planning
+        </a>
     </div>
+</div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0 text-secondary">
-                <i class="fas fa-info-circle"></i> Informations personnelles et professionnelles
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-2 text-center mb-3">
-                    <i class="fas fa-user-circle fa-6x text-secondary"></i>
+<!-- Carte principale -->
+<div class="card card-custom mb-4">
+    <div class="card-body">
+        <div class="row">
+            <!-- Avatar et infos principales -->
+            <div class="col-md-3 text-center border-end">
+                <div class="doctor-avatar mx-auto mb-3">
+                    <i class="fas fa-user-md"></i>
                 </div>
-                <div class="col-md-10">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-3 mb-3">
-                            <i class="fas fa-id-card text-primary me-2"></i> Identité
-                        </dt>
-                        <dd class="col-sm-9 mb-3 border-bottom pb-2">
-                            <span class="fs-5 fw-bold">Dr. @Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</span>
-                        </dd>
+                <h3 class="mb-1">Dr. @Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</h3>
+                <p class="text-muted mb-2">
+                    <span class="badge bg-primary fs-6">@Model.Specialite</span>
+                </p>
+                @if (Model.IdNavigation?.EstActif == true)
+                {
+                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> En activité</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary"><i class="fas fa-times-circle"></i> Inactif</span>
+                }
+            </div>
 
-                        <dt class="col-sm-3 mb-3">
-                            <i class="fas fa-stethoscope text-success me-2"></i> @Html.DisplayNameFor(model => model.Specialite)
-                        </dt>
-                        <dd class="col-sm-9 mb-3 border-bottom pb-2">
-                            <span class="badge bg-info text-dark fs-6">@Model.Specialite</span>
-                        </dd>
-
-                        <dt class="col-sm-3 mb-3">
-                            <i class="fas fa-address-book text-secondary me-2"></i> Contact
-                        </dt>
-                        <dd class="col-sm-9 mb-3">
-                            <p class="mb-1"><i class="fas fa-envelope text-muted"></i> @Model.IdNavigation?.Email</p>
-                            <p class="mb-0"><i class="fas fa-phone text-muted"></i> @Model.IdNavigation?.Telephone</p>
-                        </dd>
-                    </dl>
+            <!-- Informations de contact -->
+            <div class="col-md-4">
+                <h5 class="text-success mb-3"><i class="fas fa-address-card"></i> Informations de Contact</h5>
+                <div class="mb-3">
+                    <p class="mb-1 text-muted"><small>EMAIL</small></p>
+                    <p class="mb-0">
+                        <a href="mailto:@Model.IdNavigation?.Email">
+                            <i class="fas fa-envelope"></i> @Model.IdNavigation?.Email
+                        </a>
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <p class="mb-1 text-muted"><small>TÉLÉPHONE</small></p>
+                    <p class="mb-0">
+                        <a href="tel:@Model.IdNavigation?.Telephone">
+                            <i class="fas fa-phone"></i> @Model.IdNavigation?.Telephone
+                        </a>
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <p class="mb-1 text-muted"><small>ID MÉDECIN</small></p>
+                    <p class="mb-0"><code>#@Model.Id</code></p>
                 </div>
             </div>
+
+            <!-- Planning du jour -->
+            <div class="col-md-5">
+                <h5 class="text-primary mb-3">
+                    <i class="fas fa-calendar-day"></i> Planning d'aujourd'hui
+                    <span class="badge bg-info ms-2">@ViewBag.RdvAujourdHui RDV</span>
+                </h5>
+                @if (ViewBag.RdvDuJour != null && ((List<dynamic>)ViewBag.RdvDuJour).Any())
+                {
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        @foreach (var rdv in ViewBag.RdvDuJour)
+                        {
+                            var isPast = rdv.DateHeure < DateTime.Now;
+                            var isCurrent = rdv.DateHeure <= DateTime.Now.AddMinutes(30) && rdv.DateHeure >= DateTime.Now.AddMinutes(-30);
+                            <div class="schedule-item @(isPast ? "past" : "") @(isCurrent ? "current" : "")">
+                                <strong>@rdv.DateHeure.ToString("HH:mm")</strong>
+                                <span class="ms-2">@rdv.Patient?.IdNavigation?.Nom @rdv.Patient?.IdNavigation?.Prenom</span>
+                                <span class="badge @(rdv.Statut == "Confirmé" ? "bg-success" : "bg-warning") ms-2">@rdv.Statut</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light">
+                        <i class="fas fa-coffee"></i> Aucun rendez-vous aujourd'hui
+                    </div>
+                }
+            </div>
         </div>
-        <div class="card-footer bg-light text-end">
-            <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Modifier
-            </a>
-            <a asp-action="Index" class="btn btn-secondary ms-2">
-                <i class="fas fa-arrow-left"></i> Retour à la liste
-            </a>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.TotalPatients</h3>
+                <small>Patients</small>
+            </div>
         </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.RdvAVenir</h3>
+                <small>RDV à venir</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.RdvCeMois</h3>
+                <small>RDV ce mois</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body text-center">
+                <i class="fas fa-folder fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.TotalDossiers</h3>
+                <small>Dossiers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-secondary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-stethoscope fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.TotalConsultations</h3>
+                <small>Consultations</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-dark text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar fa-2x mb-2"></i>
+                <h3 class="mb-0">@ViewBag.TotalRdv</h3>
+                <small>Total RDV</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Prochains RDV -->
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom h-100">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-calendar-alt"></i> Prochains Rendez-vous</h6>
+                <a asp-controller="RendezVous" asp-action="Index" asp-route-medecinId="@Model.Id" class="btn btn-sm btn-light">
+                    Voir tout
+                </a>
+            </div>
+            <div class="card-body p-0">
+                @if (ViewBag.ProchainsRdv != null && ((List<dynamic>)ViewBag.ProchainsRdv).Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var rdv in ViewBag.ProchainsRdv)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>@rdv.DateHeure.ToString("dd/MM/yyyy")</strong>
+                                    <span class="text-muted">à @rdv.DateHeure.ToString("HH:mm")</span>
+                                    <br />
+                                    <small>
+                                        <i class="fas fa-user"></i>
+                                        @rdv.Patient?.IdNavigation?.Nom @rdv.Patient?.IdNavigation?.Prenom
+                                    </small>
+                                </div>
+                                <span class="badge @(rdv.Statut == "Confirmé" ? "bg-success" : "bg-warning")">
+                                    @rdv.Statut
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                        <p class="mb-0">Aucun rendez-vous à venir</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Patients récents -->
+    <div class="col-md-6 mb-4">
+        <div class="card card-custom h-100">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-users"></i> Patients Suivis</h6>
+                <span class="badge bg-light text-primary">@ViewBag.TotalPatients total</span>
+            </div>
+            <div class="card-body p-0">
+                @if (ViewBag.PatientsRecents != null && ((List<dynamic>)ViewBag.PatientsRecents).Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var patient in ViewBag.PatientsRecents)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                                         style="width: 35px; height: 35px; font-size: 0.9rem;">
+                                        @(patient.IdNavigation?.Nom?.Substring(0, 1))@(patient.IdNavigation?.Prenom?.Substring(0, 1))
+                                    </div>
+                                    <div>
+                                        <strong>@patient.IdNavigation?.Nom @patient.IdNavigation?.Prenom</strong>
+                                        <br />
+                                        <small class="text-muted">@patient.IdNavigation?.Email</small>
+                                    </div>
+                                </div>
+                                <a asp-controller="Patients" asp-action="Details" asp-route-id="@patient.Id"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <p class="mb-0">Aucun patient assigné</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des dossiers médicaux -->
+<div class="card card-custom mb-4">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-folder-open"></i> Dossiers Médicaux Gérés (@ViewBag.TotalDossiers)</h6>
+    </div>
+    <div class="card-body">
+        @if (Model.DossierMedicals?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>N° Dossier</th>
+                            <th>Patient</th>
+                            <th>Groupe Sanguin</th>
+                            <th>Consultations</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dossier in Model.DossierMedicals.Take(10))
+                        {
+                            <tr>
+                                <td><strong>#@dossier.NumDossier</strong></td>
+                                <td>
+                                    <a asp-controller="Patients" asp-action="Details" asp-route-id="@dossier.PatientId">
+                                        @dossier.Patient?.IdNavigation?.Nom @dossier.Patient?.IdNavigation?.Prenom
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">@(dossier.GroupeSanguin ?? "N/A")</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@(dossier.Consultations?.Count ?? 0)</span>
+                                </td>
+                                <td>
+                                    <a asp-controller="DossierMedicals" asp-action="Details" asp-route-id="@dossier.NumDossier"
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.DossierMedicals.Count > 10)
+            {
+                <div class="text-center">
+                    <a asp-controller="DossierMedicals" asp-action="Index" asp-route-medecinId="@Model.Id" class="btn btn-outline-primary">
+                        Voir tous les dossiers (@Model.DossierMedicals.Count)
+                    </a>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-folder-open fa-3x mb-2"></i>
+                <p class="mb-0">Aucun dossier médical géré</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Boutons d'action -->
+<div class="d-flex justify-content-between">
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+            <i class="fas fa-edit"></i> Modifier
+        </a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Supprimer
+        </a>
     </div>
 </div>

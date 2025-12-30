@@ -25,9 +25,9 @@ namespace GestionCabinetMedical.Controllers
         {
             var rendezVous = _context.RendezVous
                 .Include(r => r.Medecin)
-                    .ThenInclude(m => m.IdNavigation) // Charge Nom Médecin
+                    .ThenInclude(m => m.IdNavigation)
                 .Include(r => r.Patient)
-                    .ThenInclude(p => p.IdNavigation); // Charge Nom Patient
+                    .ThenInclude(p => p.IdNavigation);
 
             return View(await rendezVous.ToListAsync());
         }
@@ -61,21 +61,24 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumCom,DateHeure,Statut,MedecinId,PatientId")] RendezVou rendezVou)
         {
-            // 1. Remove validation for Navigation Properties
-            // We only send the IDs (MedecinId, PatientId), so the objects (Medecin, Patient) are null
-            // This stops the validator from rejecting the form.
+            // Retirer la validation des propriétés de navigation
             ModelState.Remove("Medecin");
             ModelState.Remove("Patient");
+
+            // VALIDATION CÔTÉ SERVEUR : Vérifier que la date est dans le futur
+            if (rendezVou.DateHeure <= DateTime.Now)
+            {
+                ModelState.AddModelError("DateHeure", "La date et l'heure du rendez-vous doivent être supérieures à maintenant.");
+            }
 
             if (ModelState.IsValid)
             {
                 _context.Add(rendezVou);
                 await _context.SaveChangesAsync();
+                TempData["Success"] = "Rendez-vous créé avec succès !";
                 return RedirectToAction(nameof(Index));
             }
 
-            // If we get here, something else is wrong.
-            // The view reloads, displaying validation errors.
             PopulateDropdowns(rendezVou.MedecinId, rendezVou.PatientId);
             return View(rendezVou);
         }
@@ -99,12 +102,23 @@ namespace GestionCabinetMedical.Controllers
         {
             if (id != rendezVou.NumCom) return NotFound();
 
+            // Retirer la validation des propriétés de navigation
+            ModelState.Remove("Medecin");
+            ModelState.Remove("Patient");
+
+            // VALIDATION CÔTÉ SERVEUR : Vérifier que la date est dans le futur
+            if (rendezVou.DateHeure <= DateTime.Now)
+            {
+                ModelState.AddModelError("DateHeure", "La date et l'heure du rendez-vous doivent être supérieures à maintenant.");
+            }
+
             if (ModelState.IsValid)
             {
                 try
                 {
                     _context.Update(rendezVou);
                     await _context.SaveChangesAsync();
+                    TempData["Success"] = "Rendez-vous modifié avec succès !";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -145,6 +159,7 @@ namespace GestionCabinetMedical.Controllers
                 _context.RendezVous.Remove(rendezVou);
             }
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Rendez-vous supprimé avec succès !";
             return RedirectToAction(nameof(Index));
         }
 

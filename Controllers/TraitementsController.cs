@@ -161,8 +161,10 @@ namespace GestionCabinetMedical.Controllers
                 .Select(c => new {
                     NumDetail = c.NumDetail,
                     DisplayText = "Cons. N°" + c.NumDetail +
-                                  " (" + (c.DateConsultation.HasValue ? c.DateConsultation.Value.ToShortDateString() : "Date N/A") + ") - " +
-                                  c.DossierMedical.Patient.IdNavigation.Nom + " " + c.DossierMedical.Patient.IdNavigation.Prenom
+                          " (" + c.DateConsultation.ToShortDateString() + ") - " +
+                          c.DossierMedical.Patient.IdNavigation.Nom + " " +
+                          c.DossierMedical.Patient.IdNavigation.Prenom
+
                 })
                 .ToList();
 

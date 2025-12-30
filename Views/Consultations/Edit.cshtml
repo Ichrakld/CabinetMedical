@@ -1,62 +1,120 @@
 ﻿@model GestionCabinetMedical.Models.Consultation
 
 @{
-    ViewData["Title"] = "Modifier Consultation";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = $"Modifier Consultation #{Model.NumDetail}";
 }
 
-<div class="container mt-4">
-    <div class="page-header mb-4">
-        <h1><i class="fas fa-edit text-warning"></i> Modifier la Consultation</h1>
-    </div>
+<style>
+    .traitement-item {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 5px;
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
 
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0 text-secondary"><i class="fas fa-pen"></i> Informations de la consultation</h5>
+    .traitement-text {
+        display: block;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
+</style>
+
+<div class="page-header">
+    <h1><i class="fas fa-edit text-warning"></i> Modifier Consultation #@Model.NumDetail</h1>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <form asp-action="Edit">
+            <input type="hidden" asp-for="NumDetail" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="DossierMedicalId" class="form-label">
+                            <i class="fas fa-folder text-info"></i> Dossier Médical <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId"></select>
+                        <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form asp-action="Edit">
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-                        <input type="hidden" asp-for="NumDetail" />
-
-                        <div class="mb-3">
-                            <label asp-for="DossierMedicalId" class="form-label fw-bold">
-                                <i class="fas fa-folder text-warning"></i> Dossier Médical (Patient)
-                            </label>
-                            <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId"></select>
-                            <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="DateConsultation" class="form-label fw-bold">
-                                <i class="fas fa-calendar-alt text-primary"></i> Date de la consultation
-                            </label>
-                            <input asp-for="DateConsultation" class="form-control" />
-                            <span asp-validation-for="DateConsultation" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Diagnostic" class="form-label fw-bold">
-                                <i class="fas fa-notes-medical text-success"></i> Diagnostic & Observations
-                            </label>
-                            <textarea asp-for="Diagnostic" class="form-control" rows="5" placeholder="Saisissez le diagnostic complet ici..."></textarea>
-                            <span asp-validation-for="Diagnostic" class="text-danger"></span>
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <a asp-action="Index" class="btn btn-secondary me-md-2">
-                                <i class="fas fa-times"></i> Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Enregistrer les modifications
-                            </button>
-                        </div>
-                    </form>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="DateConsultation" class="form-label">
+                            <i class="fas fa-calendar text-primary"></i> Date et Heure <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="DateConsultation" type="datetime-local" class="form-control" />
+                        <span asp-validation-for="DateConsultation" class="text-danger"></span>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <hr class="my-4" />
+
+            <h5 class="text-primary mb-3"><i class="fas fa-notes-medical"></i> Informations Médicales</h5>
+
+            <div class="mb-3">
+                <label asp-for="Diagnostic" class="form-label">
+                    <i class="fas fa-diagnoses"></i> Diagnostic
+                </label>
+                <textarea asp-for="Diagnostic" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Diagnostic" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Notes" class="form-label">
+                    <i class="fas fa-sticky-note"></i> Notes & Observations
+                </label>
+                <textarea asp-for="Notes" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+
+            <!-- Traitements existants -->
+            @if (Model.Traitements?.Any() == true)
+            {
+                <div class="card mb-3">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-pills"></i> Traitements Prescrits (@Model.Traitements.Count)
+                    </div>
+                    <div class="card-body">
+                        @foreach (var traitement in Model.Traitements)
+                        {
+                            <div class="traitement-item">
+                                <i class="fas fa-prescription text-success"></i>
+                                <span class="traitement-text">@traitement.TypeTraitement</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <a asp-controller="Traitements" asp-action="Create" asp-route-consultationId="@Model.NumDetail" class="btn btn-sm btn-success">
+                            <i class="fas fa-plus"></i> Ajouter un traitement
+                        </a>
+                    </div>
+                </div>
+            }
+
+            <hr class="my-4" />
+
+            <div class="d-flex justify-content-between">
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Annuler
+                </a>
+                <div>
+                    <a asp-controller="Traitements" asp-action="Create" asp-route-consultationId="@Model.NumDetail" class="btn btn-success">
+                        <i class="fas fa-pills"></i> Ajouter Traitement
+                    </a>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 

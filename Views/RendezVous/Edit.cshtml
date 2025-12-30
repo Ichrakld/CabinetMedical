@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Modifier Rendez-vous";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var minDateTime = DateTime.Now.AddMinutes(1).ToString("yyyy-MM-ddTHH:mm");
 }
 
 <div class="container mt-4">
@@ -17,7 +18,7 @@
                     <h5 class="mb-0 text-secondary"><i class="fas fa-pen"></i> Informations du rendez-vous</h5>
                 </div>
                 <div class="card-body">
-                    <form asp-action="Edit">
+                    <form asp-action="Edit" id="rdvEditForm">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
                         <input type="hidden" asp-for="NumCom" />
 
@@ -25,8 +26,12 @@
                             <label asp-for="DateHeure" class="form-label fw-bold">
                                 <i class="fas fa-clock text-primary"></i> Date et Heure
                             </label>
-                            <input asp-for="DateHeure" class="form-control" type="datetime-local" />
+                            <input asp-for="DateHeure" class="form-control" type="datetime-local"
+                                   id="dateHeureInput" min="@minDateTime" />
                             <span asp-validation-for="DateHeure" class="text-danger"></span>
+                            <div id="dateError" class="text-danger small mt-1" style="display:none;">
+                                <i class="fas fa-exclamation-circle"></i> La date et l'heure doivent être supérieures à maintenant
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -58,6 +63,10 @@
                             <span asp-validation-for="Statut" class="text-danger"></span>
                         </div>
 
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> <strong>Note :</strong> Vous ne pouvez pas modifier un rendez-vous pour une date/heure dans le passé.
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                             <a asp-action="Index" class="btn btn-secondary me-md-2">
                                 <i class="fas fa-times"></i> Annuler
@@ -77,4 +86,46 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        $(document).ready(function() {
+            // Mettre à jour la date minimum
+            function updateMinDate() {
+                var now = new Date();
+                now.setMinutes(now.getMinutes() + 1);
+                var minDate = now.toISOString().slice(0, 16);
+                $('#dateHeureInput').attr('min', minDate);
+            }
+
+            updateMinDate();
+            setInterval(updateMinDate, 30000);
+
+            // Validation côté client
+            $('#dateHeureInput').on('change', function() {
+                var selectedDate = new Date($(this).val());
+                var now = new Date();
+
+                if (selectedDate <= now) {
+                    $('#dateError').show();
+                    $(this).addClass('is-invalid');
+                } else {
+                    $('#dateError').hide();
+                    $(this).removeClass('is-invalid');
+                }
+            });
+
+            // Validation avant soumission
+            $('#rdvEditForm').on('submit', function(e) {
+                var selectedDate = new Date($('#dateHeureInput').val());
+                var now = new Date();
+
+                if (selectedDate <= now) {
+                    e.preventDefault();
+                    $('#dateError').show();
+                    $('#dateHeureInput').addClass('is-invalid');
+                    alert('Erreur : La date et l\'heure du rendez-vous doivent être supérieures à maintenant.');
+                    return false;
+                }
+            });
+        });
+    </script>
 }

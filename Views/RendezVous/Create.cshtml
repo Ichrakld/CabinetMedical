@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Nouveau Rendez-vous";
+    // Calculer la date/heure minimale (maintenant + 1 minute pour être sûr)
+    var minDateTime = DateTime.Now.AddMinutes(1).ToString("yyyy-MM-ddTHH:mm");
 }
 
 <div class="page-header">
@@ -10,19 +12,23 @@
 
 <div class="card">
     <div class="card-body">
-        <form asp-action="Create">
+        <form asp-action="Create" id="rdvForm">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label asp-for="PatientId" class="form-label"><i class="fas fa-user-injured"></i> Patient</label>
-                    <select asp-for="PatientId" class="form-select" asp-items="ViewBag.PatientId"></select>
+                    <select asp-for="PatientId" class="form-select" asp-items="ViewBag.PatientId">
+                        <option value="">-- Sélectionner un patient --</option>
+                    </select>
                     <span asp-validation-for="PatientId" class="text-danger"></span>
                 </div>
 
                 <div class="col-md-6 mb-3">
                     <label asp-for="MedecinId" class="form-label"><i class="fas fa-user-md"></i> Médecin</label>
-                    <select asp-for="MedecinId" class="form-select" asp-items="ViewBag.MedecinId"></select>
+                    <select asp-for="MedecinId" class="form-select" asp-items="ViewBag.MedecinId">
+                        <option value="">-- Sélectionner un médecin --</option>
+                    </select>
                     <span asp-validation-for="MedecinId" class="text-danger"></span>
                 </div>
             </div>
@@ -30,8 +36,12 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label asp-for="DateHeure" class="form-label"><i class="fas fa-calendar"></i> Date et Heure</label>
-                    <input asp-for="DateHeure" type="datetime-local" class="form-control" />
+                    <input asp-for="DateHeure" type="datetime-local" class="form-control"
+                           id="dateHeureInput" min="@minDateTime" />
                     <span asp-validation-for="DateHeure" class="text-danger"></span>
+                    <div id="dateError" class="text-danger small mt-1" style="display:none;">
+                        <i class="fas fa-exclamation-circle"></i> La date et l'heure doivent être supérieures à maintenant
+                    </div>
                 </div>
 
                 <div class="col-md-6 mb-3">
@@ -46,8 +56,12 @@
                 </div>
             </div>
 
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <strong>Note :</strong> Vous ne pouvez pas planifier un rendez-vous dans le passé.
+            </div>
+
             <div class="mt-4">
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-success" id="submitBtn">
                     <i class="fas fa-save"></i> Enregistrer
                 </button>
                 <a asp-action="Index" class="btn btn-secondary">Annuler</a>
@@ -60,4 +74,49 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        $(document).ready(function() {
+            // Mettre à jour la date minimum toutes les minutes
+            function updateMinDate() {
+                var now = new Date();
+                now.setMinutes(now.getMinutes() + 1);
+                var minDate = now.toISOString().slice(0, 16);
+                $('#dateHeureInput').attr('min', minDate);
+            }
+
+            // Mettre à jour immédiatement
+            updateMinDate();
+
+            // Mettre à jour toutes les 30 secondes
+            setInterval(updateMinDate, 30000);
+
+            // Validation côté client
+            $('#dateHeureInput').on('change', function() {
+                var selectedDate = new Date($(this).val());
+                var now = new Date();
+
+                if (selectedDate <= now) {
+                    $('#dateError').show();
+                    $(this).addClass('is-invalid');
+                } else {
+                    $('#dateError').hide();
+                    $(this).removeClass('is-invalid');
+                }
+            });
+
+            // Validation avant soumission
+            $('#rdvForm').on('submit', function(e) {
+                var selectedDate = new Date($('#dateHeureInput').val());
+                var now = new Date();
+
+                if (selectedDate <= now) {
+                    e.preventDefault();
+                    $('#dateError').show();
+                    $('#dateHeureInput').addClass('is-invalid');
+                    alert('Erreur : La date et l\'heure du rendez-vous doivent être supérieures à maintenant.');
+                    return false;
+                }
+            });
+        });
+    </script>
 }

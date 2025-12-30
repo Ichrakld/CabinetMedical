@@ -41,7 +41,7 @@ public partial class BdCabinetMedicalContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=DESKTOP-LG6MRRR;Database=BD_CabinetMedical;Trusted_Connection=True;TrustServerCertificate=True;");
+        => optionsBuilder.UseSqlServer("Server=DESKTOP-TOR09GM;Database=BD_CabinetMedical;Trusted_Connection=True;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,22 +58,6 @@ public partial class BdCabinetMedicalContext : DbContext
                 .HasConstraintName("FK__Admin__Id__3B75D760");
         });
 
-        modelBuilder.Entity<Consultation>(entity =>
-        {
-            entity.HasKey(e => e.NumDetail).HasName("PK__Consulta__D84B7AFE32A8846D");
-
-            entity.ToTable("Consultation");
-
-            entity.Property(e => e.DateConsultation)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.DossierMedical).WithMany(p => p.Consultations)
-                .HasForeignKey(d => d.DossierMedicalId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Consultat__Dossi__5165187F");
-        });
-
         modelBuilder.Entity<DossierMedical>(entity =>
         {
             entity.HasKey(e => e.NumDossier).HasName("PK__DossierM__4ED7359D35DBAEAC");
@@ -81,6 +65,8 @@ public partial class BdCabinetMedicalContext : DbContext
             entity.ToTable("DossierMedical");
 
             entity.Property(e => e.GroupeSanguin).HasMaxLength(10);
+            entity.Property(e => e.Allergies).HasMaxLength(500);
+            entity.Property(e => e.AntecedentsMedicaux);
 
             entity.HasOne(d => d.Medecin).WithMany(p => p.DossierMedicals)
                 .HasForeignKey(d => d.MedecinId)
@@ -92,6 +78,27 @@ public partial class BdCabinetMedicalContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__DossierMe__Patie__4CA06362");
         });
+
+        modelBuilder.Entity<Consultation>(entity =>
+        {
+            entity.HasKey(e => e.NumDetail).HasName("PK__Consulta__D84B7AFE32A8846D");
+
+            entity.ToTable("Consultation");
+
+            entity.Property(e => e.DateConsultation)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Diagnostic).HasMaxLength(500);
+            entity.Property(e => e.Notes);
+
+            entity.HasOne(d => d.DossierMedical).WithMany(p => p.Consultations)
+                .HasForeignKey(d => d.DossierMedicalId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Consultat__Dossi__5165187F");
+        });
+
+
+
 
         modelBuilder.Entity<Medecin>(entity =>
         {
@@ -198,7 +205,7 @@ public partial class BdCabinetMedicalContext : DbContext
 
             entity.ToTable("Traitement");
 
-            entity.Property(e => e.TypeTraitement).HasMaxLength(255);
+            entity.Property(e => e.TypeTraitement).HasMaxLength(1000);
 
             entity.HasOne(d => d.Consultation).WithMany(p => p.Traitements)
                 .HasForeignKey(d => d.ConsultationId)

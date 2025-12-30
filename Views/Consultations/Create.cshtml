@@ -4,38 +4,73 @@
     ViewData["Title"] = "Nouvelle Consultation";
 }
 
-<div class="page-header">
-    <h1><i class="fas fa-stethoscope"></i> Nouvelle Consultation</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-stethoscope text-success"></i> Nouvelle Consultation</h1>
 </div>
 
-<div class="card">
+<div class="card shadow">
     <div class="card-body">
         <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-            <div class="mb-3">
-                <label asp-for="DossierMedicalId" class="form-label"><i class="fas fa-folder"></i> Dossier Médical</label>
-                <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId"></select>
-                <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="DossierMedicalId" class="form-label">
+                            <i class="fas fa-folder text-info"></i> Dossier Médical <span class="text-danger">*</span>
+                        </label>
+                        <select asp-for="DossierMedicalId" class="form-select" asp-items="ViewBag.DossierMedicalId">
+                            <option value="">-- Sélectionner un dossier --</option>
+                        </select>
+                        <span asp-validation-for="DossierMedicalId" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="DateConsultation" class="form-label">
+                            <i class="fas fa-calendar text-primary"></i> Date et Heure <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="DateConsultation" type="datetime-local" class="form-control" />
+                        <span asp-validation-for="DateConsultation" class="text-danger"></span>
+                    </div>
+                </div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="DateConsultation" class="form-label"><i class="fas fa-calendar"></i> Date</label>
-                <input asp-for="DateConsultation" type="datetime-local" class="form-control" />
-                <span asp-validation-for="DateConsultation" class="text-danger"></span>
-            </div>
+            <hr class="my-4" />
+
+            <h5 class="text-primary mb-3"><i class="fas fa-notes-medical"></i> Informations Médicales</h5>
 
             <div class="mb-3">
-                <label asp-for="Diagnostic" class="form-label"><i class="fas fa-notes-medical"></i> Diagnostic</label>
-                <textarea asp-for="Diagnostic" class="form-control" rows="5"></textarea>
+                <label asp-for="Diagnostic" class="form-label">
+                    <i class="fas fa-diagnoses text-primary"></i> Diagnostic
+                </label>
+                <textarea asp-for="Diagnostic" class="form-control" rows="3"
+                          placeholder="Entrez le diagnostic médical..."></textarea>
                 <span asp-validation-for="Diagnostic" class="text-danger"></span>
             </div>
 
-            <div class="mt-4">
+            <div class="mb-3">
+                <label asp-for="Notes" class="form-label">
+                    <i class="fas fa-sticky-note text-secondary"></i> Notes & Observations
+                </label>
+                <textarea asp-for="Notes" class="form-control" rows="4"
+                          placeholder="Notes supplémentaires, observations, recommandations..."></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Vous pourrez ajouter des traitements après avoir créé la consultation.
+            </div>
+
+            <hr class="my-4" />
+
+            <div class="d-flex justify-content-between">
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Annuler
+                </a>
                 <button type="submit" class="btn btn-success">
-                    <i class="fas fa-save"></i> Enregistrer
+                    <i class="fas fa-save"></i> Créer la Consultation
                 </button>
-                <a asp-action="Index" class="btn btn-secondary">Annuler</a>
             </div>
         </form>
     </div>

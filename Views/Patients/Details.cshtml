@@ -1,100 +1,154 @@
 ﻿@model GestionCabinetMedical.Models.Patient
 
 @{
-    ViewData["Title"] = "Détails Patient";
+    ViewData["Title"] = $"Dossier Patient - {Model.IdNavigation?.Nom} {Model.IdNavigation?.Prenom}";
 }
 
 <style>
-    .detail-card {
-        border-radius: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-    }
-
-    .detail-header {
+    .patient-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
         color: white;
-        padding: 2rem;
-        border-radius: 15px 15px 0 0;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
-
-    .info-row {
-        padding: 1rem 0;
-        border-bottom: 1px solid #eee;
-    }
-
-        .info-row:last-child {
-            border-bottom: none;
-        }
-
-    .info-label {
-        font-weight: 600;
-        color: #667eea;
-    }
+    .stat-card { border-radius: 15px; transition: transform 0.2s; }
+    .stat-card:hover { transform: translateY(-5px); }
+    .info-label { font-weight: 600; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; }
+    .timeline { position: relative; padding-left: 30px; }
+    .timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: #dee2e6; }
+    .timeline-item { position: relative; padding-bottom: 20px; }
+    .timeline-item::before { content: ''; position: absolute; left: -24px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #007bff; border: 2px solid white; box-shadow: 0 0 0 2px #007bff; }
+    .nav-tabs .nav-link.active { background-color: #007bff; color: white; border-color: #007bff; }
+    .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
 </style>
 
-<div class="detail-card">
-    <div class="detail-header">
-        <h2><i class="fas fa-user-circle"></i> Profil Patient</h2>
-        <p class="mb-0">Informations détaillées du patient</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Patients</a></li>
+            <li class="breadcrumb-item active">@Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</li>
+        </ol>
+    </nav>
+    <div class="btn-group">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+        <a asp-controller="RendezVous" asp-action="Create" asp-route-patientId="@Model.Id" class="btn btn-success"><i class="fas fa-calendar-plus"></i> Nouveau RDV</a>
+        <a asp-controller="DossierMedicals" asp-action="Create" asp-route-patientId="@Model.Id" class="btn btn-primary"><i class="fas fa-folder-plus"></i> Nouveau Dossier</a>
     </div>
-    <div class="card-body p-4">
+</div>
+
+<div class="card card-custom mb-4">
+    <div class="card-body">
         <div class="row">
-            <div class="col-md-6">
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-id-badge"></i> ID Patient</div>
-                    <div class="info-value">@Model.Id</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-user"></i> Nom</div>
-                    <div class="info-value">@Model.IdNavigation?.Nom</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-user"></i> Prénom</div>
-                    <div class="info-value">@Model.IdNavigation?.Prenom</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-envelope"></i> Email</div>
-                    <div class="info-value">@Model.IdNavigation?.Email</div>
+            <div class="col-md-3 text-center border-end">
+                <div class="patient-avatar mx-auto mb-3">@(Model.IdNavigation?.Nom?.Substring(0, 1).ToUpper())@(Model.IdNavigation?.Prenom?.Substring(0, 1).ToUpper())</div>
+                <h3 class="mb-1">@Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</h3>
+                <p class="text-muted mb-2"><i class="fas fa-id-card"></i> Patient #@Model.Id</p>
+                @if (Model.IdNavigation?.EstActif == true) { <span class="badge bg-success fs-6"><i class="fas fa-check-circle"></i> Actif</span> }
+                else { <span class="badge bg-danger fs-6"><i class="fas fa-times-circle"></i> Inactif</span> }
+            </div>
+            <div class="col-md-5">
+                <h5 class="text-primary mb-3"><i class="fas fa-user"></i> Informations Personnelles</h5>
+                <div class="row g-3">
+                    <div class="col-6"><p class="info-label mb-1">N° Sécurité Sociale</p><code class="fs-5">@Model.NumSecuriteSociale</code></div>
+                    <div class="col-6"><p class="info-label mb-1">Email</p><a href="mailto:@Model.IdNavigation?.Email"><i class="fas fa-envelope text-muted"></i> @Model.IdNavigation?.Email</a></div>
+                    <div class="col-6"><p class="info-label mb-1">Téléphone</p><a href="tel:@Model.IdNavigation?.Telephone"><i class="fas fa-phone text-muted"></i> @Model.IdNavigation?.Telephone</a></div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-phone"></i> Téléphone</div>
-                    <div class="info-value">@Model.IdNavigation?.Telephone</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-id-card"></i> N° Sécurité Sociale</div>
-                    <div class="info-value"><span class="badge bg-info">@Model.NumSecuriteSociale</span></div>
-                </div>
-                <div class="info-row">
-                    <div class="info-label"><i class="fas fa-toggle-on"></i> Statut</div>
-                    <div class="info-value">
-                        @if (Model.IdNavigation?.EstActif == true)
-                        {
-                            <span class="badge bg-success">Actif</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger">Inactif</span>
-                        }
-                    </div>
-                </div>
+            <div class="col-md-4">
+                <h5 class="text-success mb-3"><i class="fas fa-calendar-check"></i> Prochain Rendez-vous</h5>
+                @{ var prochainRdv = Model.RendezVous?.Where(r => r.DateHeure > DateTime.Now && r.Statut != "Annulé").OrderBy(r => r.DateHeure).FirstOrDefault(); }
+                @if (prochainRdv != null) {
+                    <div class="card bg-light"><div class="card-body">
+                        <h5 class="text-primary"><i class="fas fa-calendar"></i> @prochainRdv.DateHeure.ToString("dd/MM/yyyy HH:mm")</h5>
+                        <p class="mb-0"><i class="fas fa-user-md"></i> Dr. @prochainRdv.Medecin?.IdNavigation?.Nom</p>
+                    </div></div>
+                } else { <div class="alert alert-info"><i class="fas fa-info-circle"></i> Aucun RDV planifié</div> }
             </div>
-        </div>
-
-        <hr class="my-4">
-
-        <div class="d-flex justify-content-between">
-            <a asp-action="Index" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Retour à la liste
-            </a>
-            @if (User.IsInRole("ADMIN") || User.IsInRole("MEDECIN"))
-            {
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
-                    <i class="fas fa-edit"></i> Modifier
-                </a>
-            }
         </div>
     </div>
+</div>
+
+@{ var totalRdv = Model.RendezVous?.Count ?? 0; var totalDossiers = Model.DossierMedicals?.Count ?? 0;
+   var totalConsultations = Model.DossierMedicals?.Sum(d => d.Consultations?.Count ?? 0) ?? 0;
+   var totalTraitements = Model.DossierMedicals?.SelectMany(d => d.Consultations ?? Enumerable.Empty<Consultation>()).Sum(c => c.Traitements?.Count ?? 0) ?? 0; }
+
+<div class="row mb-4">
+    <div class="col-md-3"><div class="card stat-card bg-primary text-white"><div class="card-body text-center"><i class="fas fa-calendar-alt fa-2x mb-2"></i><h3>@totalRdv</h3><small>RDV</small></div></div></div>
+    <div class="col-md-3"><div class="card stat-card bg-info text-white"><div class="card-body text-center"><i class="fas fa-folder fa-2x mb-2"></i><h3>@totalDossiers</h3><small>Dossiers</small></div></div></div>
+    <div class="col-md-3"><div class="card stat-card bg-warning text-dark"><div class="card-body text-center"><i class="fas fa-stethoscope fa-2x mb-2"></i><h3>@totalConsultations</h3><small>Consultations</small></div></div></div>
+    <div class="col-md-3"><div class="card stat-card bg-danger text-white"><div class="card-body text-center"><i class="fas fa-pills fa-2x mb-2"></i><h3>@totalTraitements</h3><small>Traitements</small></div></div></div>
+</div>
+
+<div class="card card-custom">
+    <div class="card-header bg-white">
+        <ul class="nav nav-tabs card-header-tabs" id="patientTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#rdv"><i class="fas fa-calendar-alt"></i> RDV (@totalRdv)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#dossiers"><i class="fas fa-folder"></i> Dossiers (@totalDossiers)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#consultations"><i class="fas fa-stethoscope"></i> Consultations (@totalConsultations)</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#traitements"><i class="fas fa-pills"></i> Traitements (@totalTraitements)</button></li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="rdv">
+                @if (Model.RendezVous?.Any() == true) {
+                    <table class="table table-hover"><thead class="table-light"><tr><th>Date</th><th>Médecin</th><th>Statut</th><th>Actions</th></tr></thead><tbody>
+                    @foreach (var rdv in Model.RendezVous.OrderByDescending(r => r.DateHeure)) {
+                        var badge = rdv.Statut == "Confirmé" ? "bg-success" : rdv.Statut == "Annulé" ? "bg-danger" : "bg-warning text-dark";
+                        <tr><td><strong>@rdv.DateHeure.ToString("dd/MM/yyyy HH:mm")</strong></td><td>Dr. @rdv.Medecin?.IdNavigation?.Nom</td><td><span class="badge @badge">@rdv.Statut</span></td>
+                        <td><a asp-controller="RendezVous" asp-action="Details" asp-route-id="@rdv.NumCom" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a></td></tr>
+                    }</tbody></table>
+                } else { <div class="text-center py-5 text-muted"><i class="fas fa-calendar-times fa-3x mb-3"></i><p>Aucun RDV</p></div> }
+            </div>
+            <div class="tab-pane fade" id="dossiers">
+                @if (Model.DossierMedicals?.Any() == true) {
+                    <div class="row">@foreach (var d in Model.DossierMedicals) {
+                        <div class="col-md-6 mb-3"><div class="card"><div class="card-header bg-light"><strong>Dossier #@d.NumDossier</strong> <span class="badge bg-info float-end">@(d.Consultations?.Count ?? 0) consult.</span></div>
+                        <div class="card-body">
+                            <p><strong>Groupe:</strong> <span class="badge bg-danger">@(d.GroupeSanguin ?? "N/A")</span></p>
+                            <p><strong>Médecin:</strong> Dr. @d.Medecin?.IdNavigation?.Nom</p>
+                            @if (!string.IsNullOrEmpty(d.Allergies)) { <p><strong>Allergies:</strong> @foreach (var a in d.Allergies.Split(',')) { <span class="badge bg-warning text-dark me-1">@a.Trim()</span> }</p> }
+                            @if (!string.IsNullOrEmpty(d.AntecedentsMedicaux)) { <p><strong>Antécédents:</strong> @d.AntecedentsMedicaux</p> }
+                        </div>
+                        <div class="card-footer"><a asp-controller="DossierMedicals" asp-action="Details" asp-route-id="@d.NumDossier" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> Détails</a></div>
+                        </div></div>
+                    }</div>
+                } else { <div class="text-center py-5 text-muted"><i class="fas fa-folder fa-3x mb-3"></i><p>Aucun dossier</p></div> }
+            </div>
+            <div class="tab-pane fade" id="consultations">
+                @{ var allC = Model.DossierMedicals?.SelectMany(d => d.Consultations ?? Enumerable.Empty<Consultation>()).OrderByDescending(c => c.DateConsultation).ToList(); }
+                @if (allC?.Any() == true) {
+                    @foreach (var c in allC) {
+                        <div class="card mb-2"><div class="card-body">
+                            <h6><i class="fas fa-calendar text-primary"></i> @c.DateConsultation.ToString("dd/MM/yyyy HH:mm") <span class="badge bg-secondary">Consultation #@c.NumDetail</span></h6>
+                            @if (!string.IsNullOrEmpty(c.Diagnostic)) { <p><strong>Diagnostic:</strong> @c.Diagnostic</p> }
+                            @if (!string.IsNullOrEmpty(c.Notes)) { <p class="text-muted"><strong>Notes:</strong> @c.Notes</p> }
+                            @if (c.Traitements?.Any() == true) { <p><strong>Traitements:</strong> @foreach (var t in c.Traitements) { <span class="badge bg-success me-1">@t.TypeTraitement</span> }</p> }
+                        </div></div>
+                    }
+                } else { <div class="text-center py-5 text-muted"><i class="fas fa-stethoscope fa-3x mb-3"></i><p>Aucune consultation</p></div> }
+            </div>
+            <div class="tab-pane fade" id="traitements">
+                @{ var allT = Model.DossierMedicals?.SelectMany(d => d.Consultations ?? Enumerable.Empty<Consultation>()).SelectMany(c => c.Traitements ?? Enumerable.Empty<Traitement>()).ToList(); }
+                @if (allT?.Any() == true) {
+                    <table class="table"><thead><tr><th>#</th><th>Traitement</th><th>Consultation</th></tr></thead><tbody>
+                    @foreach (var t in allT) { <tr><td>@t.NumPro</td><td><span class="badge bg-success">@t.TypeTraitement</span></td><td>#@t.ConsultationId</td></tr> }
+                    </tbody></table>
+                } else { <div class="text-center py-5 text-muted"><i class="fas fa-pills fa-3x mb-3"></i><p>Aucun traitement</p></div> }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between mt-4">
+    <a asp-action="Index" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    <div><a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
+    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger"><i class="fas fa-trash"></i> Supprimer</a></div>
 </div>

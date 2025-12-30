@@ -23,13 +23,15 @@ namespace GestionCabinetMedical.Controllers
         // GET: Consultations
         public async Task<IActionResult> Index()
         {
-            // On charge le Dossier, PUIS le Patient du dossier, PUIS le User du Patient
-            var consultations = _context.Consultations
+            var consultations = await _context.Consultations
                 .Include(c => c.DossierMedical)
                     .ThenInclude(d => d.Patient)
-                        .ThenInclude(p => p.IdNavigation);
+                        .ThenInclude(p => p.IdNavigation)
+                .Include(c => c.Traitements)
+                .OrderByDescending(c => c.DateConsultation)
+                .ToListAsync();
 
-            return View(await consultations.ToListAsync());
+            return View(consultations);
         }
 
         // GET: Consultations/Details/5
@@ -41,6 +43,10 @@ namespace GestionCabinetMedical.Controllers
                 .Include(c => c.DossierMedical)
                     .ThenInclude(d => d.Patient)
                         .ThenInclude(p => p.IdNavigation)
+                .Include(c => c.DossierMedical)
+                    .ThenInclude(d => d.Medecin)
+                        .ThenInclude(m => m.IdNavigation)
+                .Include(c => c.Traitements)
                 .FirstOrDefaultAsync(m => m.NumDetail == id);
 
             if (consultation == null) return NotFound();
@@ -49,15 +55,22 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // GET: Consultations/Create
-        public IActionResult Create()
+        public IActionResult Create(int? dossierId)
         {
-            PopulateDropdowns();
-            return View();
+            PopulateDropdowns(dossierId);
+
+            // Définir la date par défaut à maintenant
+            var consultation = new Consultation
+            {
+                DateConsultation = DateTime.Now
+            };
+
+            return View(consultation);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("NumDetail,Diagnostic,DateConsultation,DossierMedicalId")] Consultation consultation)
+        public async Task<IActionResult> Create([Bind("NumDetail,DateConsultation,Diagnostic,Notes,DossierMedicalId")] Consultation consultation)
         {
             // FIX: Remove validation for the navigation property
             ModelState.Remove("DossierMedical");
@@ -66,6 +79,7 @@ namespace GestionCabinetMedical.Controllers
             {
                 _context.Add(consultation);
                 await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Consultation créée avec succès.";
                 return RedirectToAction(nameof(Index));
             }
             PopulateDropdowns(consultation.DossierMedicalId);
@@ -77,7 +91,10 @@ namespace GestionCabinetMedical.Controllers
         {
             if (id == null) return NotFound();
 
-            var consultation = await _context.Consultations.FindAsync(id);
+            var consultation = await _context.Consultations
+                .Include(c => c.Traitements)
+                .FirstOrDefaultAsync(c => c.NumDetail == id);
+
             if (consultation == null) return NotFound();
 
             PopulateDropdowns(consultation.DossierMedicalId);
@@ -86,7 +103,7 @@ namespace GestionCabinetMedical.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("NumDetail,Diagnostic,DateConsultation,DossierMedicalId")] Consultation consultation)
+        public async Task<IActionResult> Edit(int id, [Bind("NumDetail,DateConsultation,Diagnostic,Notes,DossierMedicalId")] Consultation consultation)
         {
             if (id != consultation.NumDetail) return NotFound();
 
@@ -99,6 +116,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     _context.Update(consultation);
                     await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Consultation modifiée avec succès.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -120,6 +138,7 @@ namespace GestionCabinetMedical.Controllers
                 .Include(c => c.DossierMedical)
                     .ThenInclude(d => d.Patient)
                         .ThenInclude(p => p.IdNavigation)
+                .Include(c => c.Traitements)
                 .FirstOrDefaultAsync(m => m.NumDetail == id);
 
             if (consultation == null) return NotFound();
@@ -132,12 +151,22 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var consultation = await _context.Consultations.FindAsync(id);
+            var consultation = await _context.Consultations
+                .Include(c => c.Traitements)
+                .FirstOrDefaultAsync(c => c.NumDetail == id);
+
             if (consultation != null)
             {
+                // Supprimer d'abord les traitements associés
+                if (consultation.Traitements?.Any() == true)
+                {
+                    _context.Traitements.RemoveRange(consultation.Traitements);
+                }
+
                 _context.Consultations.Remove(consultation);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Consultation supprimée avec succès.";
             }
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
@@ -151,7 +180,7 @@ namespace GestionCabinetMedical.Controllers
         {
             var dossierQuery = _context.DossierMedicals
                 .Include(d => d.Patient)
-                .ThenInclude(p => p.IdNavigation)
+                    .ThenInclude(p => p.IdNavigation)
                 .Select(d => new {
                     NumDossier = d.NumDossier,
                     DisplayText = "Dossier N°" + d.NumDossier + " - " + d.Patient.IdNavigation.Nom + " " + d.Patient.IdNavigation.Prenom

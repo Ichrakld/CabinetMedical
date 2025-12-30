@@ -23,14 +23,16 @@ namespace GestionCabinetMedical.Controllers
         // GET: DossiersMedicaux
         public async Task<IActionResult> Index()
         {
-            // FIX 1: Added .ThenInclude to load the User info (Nom/Prenom) for both Medecin and Patient
-            var dossiers = _context.DossierMedicals
+            var dossiers = await _context.DossierMedicals
                 .Include(d => d.Medecin)
                     .ThenInclude(m => m.IdNavigation)
                 .Include(d => d.Patient)
-                    .ThenInclude(p => p.IdNavigation);
+                    .ThenInclude(p => p.IdNavigation)
+                .Include(d => d.Consultations)
+                .OrderByDescending(d => d.NumDossier)
+                .ToListAsync();
 
-            return View(await dossiers.ToListAsync());
+            return View(dossiers);
         }
 
         // GET: DossiersMedicaux/Details/5
@@ -41,12 +43,13 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // FIX 1: Applied here as well so Details view shows names
             var dossierMedical = await _context.DossierMedicals
                 .Include(d => d.Medecin)
                     .ThenInclude(m => m.IdNavigation)
                 .Include(d => d.Patient)
                     .ThenInclude(p => p.IdNavigation)
+                .Include(d => d.Consultations)
+                    .ThenInclude(c => c.Traitements)
                 .FirstOrDefaultAsync(m => m.NumDossier == id);
 
             if (dossierMedical == null)
@@ -58,21 +61,17 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // GET: DossiersMedicaux/Create
-        public IActionResult Create()
+        public IActionResult Create(int? patientId)
         {
-            // FIX 2: Project data to get Full Names for the Dropdown list
-            PopulateDropdowns();
+            PopulateDropdowns(selectedPatient: patientId);
             return View();
         }
 
         // POST: DossiersMedicaux/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("NumDossier,GroupeSanguin,PatientId,MedecinId")] DossierMedical dossierMedical)
+        public async Task<IActionResult> Create([Bind("NumDossier,GroupeSanguin,Allergies,AntecedentsMedicaux,PatientId,MedecinId")] DossierMedical dossierMedical)
         {
-            // IMPORTANT : On retire la validation des objets de navigation.
-            // Le formulaire n'envoie que les IDs (PatientId, MedecinId), donc les objets complets sont null.
-            // Sans ces deux lignes, ModelState.IsValid sera toujours faux et rien ne s'enregistrera.
             ModelState.Remove("Patient");
             ModelState.Remove("Medecin");
 
@@ -80,11 +79,10 @@ namespace GestionCabinetMedical.Controllers
             {
                 _context.Add(dossierMedical);
                 await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Dossier médical créé avec succès.";
                 return RedirectToAction(nameof(Index));
             }
 
-            // Si le formulaire est invalide (ex: champ manquant), on recharge les listes déroulantes
-            // pour que l'utilisateur puisse corriger sans tout perdre.
             PopulateDropdowns(dossierMedical.MedecinId, dossierMedical.PatientId);
             return View(dossierMedical);
         }
@@ -103,7 +101,6 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // FIX 2: Populate dropdowns with names
             PopulateDropdowns(dossierMedical.MedecinId, dossierMedical.PatientId);
             return View(dossierMedical);
         }
@@ -111,15 +108,13 @@ namespace GestionCabinetMedical.Controllers
         // POST: DossiersMedicaux/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("NumDossier,GroupeSanguin,PatientId,MedecinId")] DossierMedical dossierMedical)
+        public async Task<IActionResult> Edit(int id, [Bind("NumDossier,GroupeSanguin,Allergies,AntecedentsMedicaux,PatientId,MedecinId")] DossierMedical dossierMedical)
         {
             if (id != dossierMedical.NumDossier)
             {
                 return NotFound();
             }
 
-            // CORRECTION : On retire les objets de navigation de la validation
-            // car le formulaire n'envoie que les IDs (PatientId, MedecinId)
             ModelState.Remove("Patient");
             ModelState.Remove("Medecin");
 
@@ -129,6 +124,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     _context.Update(dossierMedical);
                     await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Dossier médical modifié avec succès.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -144,7 +140,6 @@ namespace GestionCabinetMedical.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Si ça échoue encore, on recharge les listes
             PopulateDropdowns(dossierMedical.MedecinId, dossierMedical.PatientId);
             return View(dossierMedical);
         }
@@ -157,12 +152,13 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // FIX 1: Applied here so Delete confirmation shows who is being deleted
             var dossierMedical = await _context.DossierMedicals
                 .Include(d => d.Medecin)
                     .ThenInclude(m => m.IdNavigation)
                 .Include(d => d.Patient)
                     .ThenInclude(p => p.IdNavigation)
+                .Include(d => d.Consultations)
+                    .ThenInclude(c => c.Traitements)
                 .FirstOrDefaultAsync(m => m.NumDossier == id);
 
             if (dossierMedical == null)
@@ -178,13 +174,33 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var dossierMedical = await _context.DossierMedicals.FindAsync(id);
+            var dossierMedical = await _context.DossierMedicals
+                .Include(d => d.Consultations)
+                    .ThenInclude(c => c.Traitements)
+                .FirstOrDefaultAsync(d => d.NumDossier == id);
+
             if (dossierMedical != null)
             {
+                // Supprimer les traitements de toutes les consultations
+                foreach (var consultation in dossierMedical.Consultations ?? Enumerable.Empty<Consultation>())
+                {
+                    if (consultation.Traitements?.Any() == true)
+                    {
+                        _context.Traitements.RemoveRange(consultation.Traitements);
+                    }
+                }
+
+                // Supprimer les consultations
+                if (dossierMedical.Consultations?.Any() == true)
+                {
+                    _context.Consultations.RemoveRange(dossierMedical.Consultations);
+                }
+
                 _context.DossierMedicals.Remove(dossierMedical);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Dossier médical supprimé avec succès.";
             }
 
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
@@ -198,7 +214,7 @@ namespace GestionCabinetMedical.Controllers
         {
             var medecins = _context.Medecins
                 .Include(m => m.IdNavigation)
-                .AsEnumerable() // Évite la projection SQL complexe
+                .AsEnumerable()
                 .Select(m => new {
                     m.Id,
                     NomComplet = $"Dr. {m.IdNavigation.Nom} {m.IdNavigation.Prenom} ({m.Specialite})"
@@ -209,7 +225,7 @@ namespace GestionCabinetMedical.Controllers
                 .AsEnumerable()
                 .Select(p => new {
                     p.Id,
-                    NomComplet = $"{p.IdNavigation.Nom} {p.IdNavigation.Prenom}"
+                    NomComplet = $"{p.IdNavigation.Nom} {p.IdNavigation.Prenom} ({p.NumSecuriteSociale})"
                 });
 
             ViewData["MedecinId"] = new SelectList(medecins, "Id", "NomComplet", selectedMedecin);

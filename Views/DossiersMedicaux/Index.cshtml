@@ -4,78 +4,213 @@
     ViewData["Title"] = "Dossiers Médicaux";
 }
 
-<div class="page-header">
-    <h1><i class="fas fa-folder-open"></i> Dossiers Médicaux</h1>
-</div>
+<style>
+    .allergies-text {
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
-<div class="mb-4">
-    <a asp-action="Create" class="btn btn-success btn-custom">
+    .antecedents-text {
+        max-width: 150px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-folder-open text-info"></i> Dossiers Médicaux</h1>
+    <a asp-action="Create" class="btn btn-success">
         <i class="fas fa-plus-circle"></i> Nouveau Dossier
     </a>
 </div>
 
-<div class="table-custom">
-    <table class="table table-hover mb-0">
-        <thead class="table-light">
-            <tr>
-                <th><i class="fas fa-folder"></i> N° Dossier</th>
-                <th><i class="fas fa-user-injured"></i> Patient</th>
-                <th><i class="fas fa-user-md"></i> Médecin</th>
-                <th><i class="fas fa-tint"></i> Groupe Sanguin</th>
-                <th class="text-center"><i class="fas fa-cog"></i> Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (Model != null && Model.Any())
-            {
-                @foreach (var item in Model)
-                {
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle"></i> @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-folder fa-2x mb-2"></i>
+                <h3>@Model.Count()</h3>
+                <small>Total Dossiers</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h3>@Model.Count(d => !string.IsNullOrEmpty(d.Allergies))</h3>
+                <small>Avec Allergies</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-history fa-2x mb-2"></i>
+                <h3>@Model.Count(d => !string.IsNullOrEmpty(d.AntecedentsMedicaux))</h3>
+                <small>Avec Antécédents</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-stethoscope fa-2x mb-2"></i>
+                <h3>@Model.Sum(d => d.Consultations != null ? d.Consultations.Count : 0)</h3>
+                <small>Total Consultations</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
                     <tr>
-                        <td><span class="badge bg-primary">@item.NumDossier</span></td>
-                        <td>
-                            @if (item.Patient?.IdNavigation != null)
-                            {
-                                @($"{item.Patient.IdNavigation.Nom} {item.Patient.IdNavigation.Prenom}")
-                            }
-                            else
-                            {
-                                <span class="text-muted">N/A</span>
-                            }
-                        </td>
-                        <td>
-                            @if (item.Medecin?.IdNavigation != null)
-                            {
-                                <text>Dr. @item.Medecin.IdNavigation.Nom</text>
-                            }
-                            else
-                            {
-                                <span class="text-muted">N/A</span>
-                            }
-                        </td>
-                        <td><span class="badge bg-danger">@item.GroupeSanguin</span></td>
-                        <td class="text-center">
-                            <a asp-action="Details" asp-route-id="@item.NumDossier" class="btn btn-sm btn-info">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a asp-action="Edit" asp-route-id="@item.NumDossier" class="btn btn-sm btn-warning">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a asp-action="Delete" asp-route-id="@item.NumDossier" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
+                        <th style="width: 60px;"><i class="fas fa-hashtag"></i> N°</th>
+                        <th><i class="fas fa-user-injured"></i> Patient</th>
+                        <th><i class="fas fa-user-md"></i> Médecin</th>
+                        <th style="width: 80px;"><i class="fas fa-tint"></i> Groupe</th>
+                        <th><i class="fas fa-exclamation-triangle"></i> Allergies</th>
+                        <th><i class="fas fa-history"></i> Antécédents</th>
+                        <th style="width: 80px;"><i class="fas fa-stethoscope"></i> Consult.</th>
+                        <th style="width: 130px;" class="text-center"><i class="fas fa-cog"></i> Actions</th>
                     </tr>
-                }
-            }
-            else
-            {
-                <tr>
-                    <td colspan="5" class="text-center py-4">
-                        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Aucun dossier médical</p>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        @foreach (var item in Model)
+                        {
+                            <tr class="@(!string.IsNullOrEmpty(item.Allergies) ? "table-warning" : "")">
+                                <td><strong>#@item.NumDossier</strong></td>
+                                <td>
+                                    @if (item.Patient != null && item.Patient.IdNavigation != null)
+                                    {
+                                        <a asp-controller="Patients" asp-action="Details" asp-route-id="@item.PatientId">
+                                            <i class="fas fa-user text-primary"></i>
+                                            @item.Patient.IdNavigation.Nom @item.Patient.IdNavigation.Prenom
+                                        </a>
+                                        <br />
+                                        <small class="text-muted">
+                                            <i class="fas fa-id-card"></i> @item.Patient.NumSecuriteSociale
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.Medecin != null && item.Medecin.IdNavigation != null)
+                                    {
+                                        <i class="fas fa-user-md text-success"></i>
+                                        <text>Dr. @item.Medecin.IdNavigation.Nom</text>
+                                        <br />
+                                        <small class="text-muted">@item.Medecin.Specialite</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (!string.IsNullOrEmpty(item.GroupeSanguin))
+                                    {
+                                        <span class="badge bg-danger fs-6">
+                                            <i class="fas fa-tint"></i> @item.GroupeSanguin
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.Allergies))
+                                    {
+                                        var allergiesList = item.Allergies.Split(',');
+                                        foreach (var allergie in allergiesList.Take(2))
+                                        {
+                                            <span class="badge bg-warning text-dark me-1">
+                                                <i class="fas fa-exclamation-triangle"></i> @allergie.Trim()
+                                            </span>
+                                        }
+                                        if (allergiesList.Length > 2)
+                                        {
+                                            <span class="badge bg-secondary">+@(allergiesList.Length - 2)</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> Aucune</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.AntecedentsMedicaux))
+                                    {
+                                        <span class="antecedents-text d-inline-block text-muted" title="@item.AntecedentsMedicaux">
+                                            <i class="fas fa-history text-info"></i>
+                                            @(item.AntecedentsMedicaux.Length > 25 ? item.AntecedentsMedicaux.Substring(0, 25) + "..." : item.AntecedentsMedicaux)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @{
+                                        var nbConsultations = item.Consultations != null ? item.Consultations.Count : 0;
+                                        var badgeClass = nbConsultations > 0 ? "bg-success" : "bg-secondary";
+                                    }
+                                    <span class="badge @badgeClass fs-6">@nbConsultations</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Details" asp-route-id="@item.NumDossier" class="btn btn-sm btn-info" title="Détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@item.NumDossier" class="btn btn-sm btn-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.NumDossier" class="btn btn-sm btn-danger" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Aucun dossier médical enregistré</p>
+                                <a asp-action="Create" class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Créer un dossier
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>

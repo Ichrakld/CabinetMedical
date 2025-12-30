@@ -4,54 +4,73 @@
     ViewData["Title"] = "Supprimer Consultation";
 }
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="text-center mb-4">
-                <h1 class="text-danger"><i class="fas fa-file-prescription"></i> Suppression de Consultation</h1>
-                <p class="lead text-muted">Êtes-vous sûr de vouloir supprimer cette consultation ?</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="text-danger"><i class="fas fa-trash"></i> Supprimer la Consultation</h1>
+</div>
+
+<div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle fa-lg"></i>
+    <strong>Attention!</strong> Cette action est irréversible.
+    Tous les traitements associés à cette consultation seront également supprimés.
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-stethoscope"></i> Consultation #@Model.NumDetail</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-info"><i class="fas fa-info-circle"></i> Informations</h6>
+                <dl class="row">
+                    <dt class="col-sm-4">N° Consultation</dt>
+                    <dd class="col-sm-8"><strong>#@Model.NumDetail</strong></dd>
+
+                    <dt class="col-sm-4">Date</dt>
+                    <dd class="col-sm-8">@Model.DateConsultation.ToString("dd/MM/yyyy HH:mm")</dd>
+
+                    <dt class="col-sm-4">Dossier</dt>
+                    <dd class="col-sm-8">Dossier #@Model.DossierMedicalId</dd>
+                </dl>
+
+                @if (Model.DossierMedical?.Patient?.IdNavigation != null)
+                {
+                    <h6 class="text-primary mt-3"><i class="fas fa-user"></i> Patient</h6>
+                    <p>
+                        <strong>@Model.DossierMedical.Patient.IdNavigation.Nom @Model.DossierMedical.Patient.IdNavigation.Prenom</strong>
+                        <br />
+                        <small class="text-muted">N° Sécu: @Model.DossierMedical.Patient.NumSecuriteSociale</small>
+                    </p>
+                }
             </div>
+            <div class="col-md-6">
+                @if (!string.IsNullOrEmpty(Model.Diagnostic))
+                {
+                    <h6 class="text-primary"><i class="fas fa-diagnoses"></i> Diagnostic</h6>
+                    <p>@Model.Diagnostic</p>
+                }
 
-            <div class="alert alert-warning border-warning shadow-sm">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Attention :</strong> Cette action est irréversible.
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <h6 class="text-secondary"><i class="fas fa-sticky-note"></i> Notes</h6>
+                    <p class="text-muted">@Model.Notes</p>
+                }
             </div>
+        </div>
 
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0 text-secondary">Détails de la consultation #@Model.NumDetail</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Date</dt>
-                        <dd class="col-sm-8 fw-bold">@Model.DateConsultation?.ToString("dd/MM/yyyy HH:mm")</dd>
-
-                        <dt class="col-sm-4 text-muted">Dossier Médical</dt>
-                        <dd class="col-sm-8">N° @Model.DossierMedicalId</dd>
-
-                        <dt class="col-sm-4 text-muted">Patient</dt>
-                        <dd class="col-sm-8">
-                            @if (Model.DossierMedical?.Patient?.IdNavigation != null)
-                            {
-                                <i class="fas fa-user-injured me-1"></i>
-                                @($"{Model.DossierMedical.Patient.IdNavigation.Nom} {Model.DossierMedical.Patient.IdNavigation.Prenom}")
-                            }
-                            else
-                            {
-                                <span class="text-muted">Non disponible</span>
-                            }
-                        </dd>
-                    </dl>
-                </div>
-            </div>
-
-            <form asp-action="Delete" class="text-center">
-                <input type="hidden" asp-for="NumDetail" />
-                <button type="submit" class="btn btn-danger btn-lg px-4 me-2">
-                    <i class="fas fa-trash-alt me-2"></i> Confirmer
-                </button>
-                <a asp-action="Index" class="btn btn-secondary btn-lg px-4">Annuler</a>
-            </form>
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="fas fa-info-circle"></i>
+            <strong>@(Model.Traitements?.Count ?? 0)</strong> traitement(s) seront supprimé(s).
         </div>
     </div>
 </div>
+
+<form asp-action="Delete" class="mt-4">
+    <input type="hidden" asp-for="NumDetail" />
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Annuler
+    </a>
+    <button type="submit" class="btn btn-danger">
+        <i class="fas fa-trash"></i> Confirmer la suppression
+    </button>
+</form>

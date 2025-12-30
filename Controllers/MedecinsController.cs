@@ -1,5 +1,7 @@
 ﻿using GestionCabinetMedical.Models;
+using GestionCabinetMedical.Areas.Identity.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +16,12 @@ namespace GestionCabinetMedical.Controllers
     public class MedecinsController : Controller
     {
         private readonly BdCabinetMedicalContext _context;
+        private readonly UserManager<Userper> _userManager;
 
-        public MedecinsController(BdCabinetMedicalContext context)
+        public MedecinsController(BdCabinetMedicalContext context, UserManager<Userper> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: Medecins
@@ -35,14 +39,55 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
+            // Charger le médecin avec toutes ses relations
             var medecin = await _context.Medecins
                 .Include(m => m.IdNavigation)
+                .Include(m => m.RendezVous)
+                    .ThenInclude(r => r.Patient)
+                        .ThenInclude(p => p.IdNavigation)
+                .Include(m => m.DossierMedicals)
+                    .ThenInclude(d => d.Patient)
+                        .ThenInclude(p => p.IdNavigation)
+                .Include(m => m.DossierMedicals)
+                    .ThenInclude(d => d.Consultations)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (medecin == null)
             {
                 return NotFound();
             }
+
+            // Statistiques du médecin
+            ViewBag.TotalRdv = medecin.RendezVous?.Count ?? 0;
+            ViewBag.RdvAujourdHui = medecin.RendezVous?.Count(r => r.DateHeure.Date == DateTime.Today && r.Statut != "Annulé") ?? 0;
+            ViewBag.RdvAVenir = medecin.RendezVous?.Count(r => r.DateHeure > DateTime.Now && r.Statut != "Annulé") ?? 0;
+            ViewBag.RdvCeMois = medecin.RendezVous?.Count(r => r.DateHeure.Month == DateTime.Now.Month && r.DateHeure.Year == DateTime.Now.Year) ?? 0;
+
+            ViewBag.TotalPatients = medecin.DossierMedicals?.Select(d => d.PatientId).Distinct().Count() ?? 0;
+            ViewBag.TotalDossiers = medecin.DossierMedicals?.Count ?? 0;
+            ViewBag.TotalConsultations = medecin.DossierMedicals?.Sum(d => d.Consultations?.Count ?? 0) ?? 0;
+
+            // Prochains RDV (5)
+            ViewBag.ProchainsRdv = medecin.RendezVous?
+                .Where(r => r.DateHeure > DateTime.Now && r.Statut != "Annulé")
+                .OrderBy(r => r.DateHeure)
+                .Take(5)
+                .ToList();
+
+            // RDV d'aujourd'hui
+            ViewBag.RdvDuJour = medecin.RendezVous?
+                .Where(r => r.DateHeure.Date == DateTime.Today && r.Statut != "Annulé")
+                .OrderBy(r => r.DateHeure)
+                .ToList();
+
+            // Patients récents (5)
+            ViewBag.PatientsRecents = medecin.DossierMedicals?
+                .OrderByDescending(d => d.NumDossier)
+                .Select(d => d.Patient)
+                .Where(p => p != null)
+                .DistinctBy(p => p.Id)
+                .Take(5)
+                .ToList();
 
             return View(medecin);
         }
@@ -58,26 +103,52 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Medecin medecin)
         {
-            // IMPORTANT : On retire [Bind] pour accepter IdNavigation (les infos utilisateur)
-
             if (ModelState.IsValid)
             {
-                // 1. On s'assure que l'utilisateur est marqué comme Actif
-                if (medecin.IdNavigation != null)
+                // ===============================================
+                // ÉTAPE 1 : Créer l'utilisateur dans ASP.NET Identity
+                // ===============================================
+                var identityUser = new Userper
                 {
-                    medecin.IdNavigation.EstActif = true;
-                }
+                    UserName = medecin.IdNavigation.Email,
+                    Email = medecin.IdNavigation.Email,
+                    Nom = $"Dr. {medecin.IdNavigation.Nom} {medecin.IdNavigation.Prenom}",
+                    EmailConfirmed = true,
+                    PhoneNumber = medecin.IdNavigation.Telephone
+                };
 
-                // 2. Entity Framework est intelligent.
-                // Puisque medecin.IdNavigation contient des données (Nom, Email...),
-                // Il va d'abord insérer l'Utilisateur, récupérer l'ID,
-                // puis insérer le Médecin lié à cet ID.
-                _context.Add(medecin);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                // Créer l'utilisateur avec le mot de passe fourni
+                var result = await _userManager.CreateAsync(identityUser, medecin.IdNavigation.MotDePasse);
+
+                if (result.Succeeded)
+                {
+                    // Assigner le rôle MEDECIN
+                    await _userManager.AddToRoleAsync(identityUser, "MEDECIN");
+
+                    // ===============================================
+                    // ÉTAPE 2 : Créer dans la base métier
+                    // ===============================================
+                    if (medecin.IdNavigation != null)
+                    {
+                        medecin.IdNavigation.EstActif = true;
+                    }
+
+                    _context.Add(medecin);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = $"Dr. {medecin.IdNavigation.Nom} créé avec succès ! Il peut maintenant se connecter avec l'email: {medecin.IdNavigation.Email}";
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    // Afficher les erreurs de création Identity
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                }
             }
 
-            // Si échec, on réaffiche le formulaire
             return View(medecin);
         }
 
@@ -90,15 +161,13 @@ namespace GestionCabinetMedical.Controllers
             }
 
             var medecin = await _context.Medecins
-                .Include(m => m.IdNavigation) // Important pour afficher le nom en lecture seule
+                .Include(m => m.IdNavigation)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (medecin == null)
             {
                 return NotFound();
             }
-            // Pas besoin de dropdown pour l'Edit car l'ID (l'utilisateur) ne change pas, 
-            // on affiche juste son nom en texte brut dans la vue.
             return View(medecin);
         }
 
@@ -112,10 +181,7 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // 1. On ignore la validation du mot de passe (car on ne le modifie pas ici)
             ModelState.Remove("IdNavigation.MotDePasse");
-
-            // On nettoie aussi les validations des autres relations pour éviter les erreurs inutiles
             ModelState.Remove("IdNavigation.Admin");
             ModelState.Remove("IdNavigation.Medecin");
             ModelState.Remove("IdNavigation.Patient");
@@ -125,7 +191,6 @@ namespace GestionCabinetMedical.Controllers
             {
                 try
                 {
-                    // 2. On charge l'entité existante depuis la base de données
                     var medecinExist = await _context.Medecins
                         .Include(m => m.IdNavigation)
                         .FirstOrDefaultAsync(m => m.Id == id);
@@ -135,18 +200,33 @@ namespace GestionCabinetMedical.Controllers
                         return NotFound();
                     }
 
-                    // 3. On met à jour les champs manuellement
-                    medecinExist.Specialite = medecin.Specialite;
+                    // Récupérer l'ancien email
+                    var ancienEmail = medecinExist.IdNavigation.Email;
 
-                    // Mise à jour des infos utilisateur
+                    // Mettre à jour la base métier
+                    medecinExist.Specialite = medecin.Specialite;
                     medecinExist.IdNavigation.Nom = medecin.IdNavigation.Nom;
                     medecinExist.IdNavigation.Prenom = medecin.IdNavigation.Prenom;
                     medecinExist.IdNavigation.Email = medecin.IdNavigation.Email;
                     medecinExist.IdNavigation.Telephone = medecin.IdNavigation.Telephone;
 
-                    // 4. On sauvegarde le tout
+                    // ===============================================
+                    // SYNCHRONISER avec ASP.NET Identity
+                    // ===============================================
+                    var identityUser = await _userManager.FindByEmailAsync(ancienEmail);
+                    if (identityUser != null)
+                    {
+                        identityUser.Email = medecin.IdNavigation.Email;
+                        identityUser.UserName = medecin.IdNavigation.Email;
+                        identityUser.Nom = $"Dr. {medecin.IdNavigation.Nom} {medecin.IdNavigation.Prenom}";
+                        identityUser.PhoneNumber = medecin.IdNavigation.Telephone;
+                        await _userManager.UpdateAsync(identityUser);
+                    }
+
                     _context.Update(medecinExist);
                     await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Médecin modifié avec succès !";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -162,7 +242,6 @@ namespace GestionCabinetMedical.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Si échec, on recharge les données nécessaires pour la vue
             return View(medecin);
         }
 
@@ -191,15 +270,31 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            // On supprime l'utilisateur global, pas juste le rôle médecin
-            var utilisateur = await _context.Utilisateurs.FindAsync(id);
+            var medecin = await _context.Medecins
+                .Include(m => m.IdNavigation)
+                .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (utilisateur != null)
+            if (medecin != null)
             {
-                _context.Utilisateurs.Remove(utilisateur);
+                // ===============================================
+                // SUPPRIMER aussi l'utilisateur ASP.NET Identity
+                // ===============================================
+                var identityUser = await _userManager.FindByEmailAsync(medecin.IdNavigation.Email);
+                if (identityUser != null)
+                {
+                    await _userManager.DeleteAsync(identityUser);
+                }
+
+                // Supprimer de la base métier
+                var utilisateur = await _context.Utilisateurs.FindAsync(id);
+                if (utilisateur != null)
+                {
+                    _context.Utilisateurs.Remove(utilisateur);
+                }
             }
 
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Médecin supprimé avec succès !";
             return RedirectToAction(nameof(Index));
         }
 
