@@ -1,0 +1,346 @@
+﻿@{
+    ViewData["Title"] = "Calendrier des Rendez-vous";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-calendar-alt text-primary me-2"></i>Calendrier des Rendez-vous
+        </h2>
+        <div>
+            <a asp-action="Index" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-list me-1"></i>Vue Liste
+            </a>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nouveau RDV
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <label class="form-label mb-1"><i class="fas fa-user-md me-1"></i>Médecin</label>
+                    <select id="filterMedecin" class="form-select">
+                        <option value="">Tous les médecins</option>
+                        @foreach (var medecin in ViewBag.Medecins)
+                        {
+                            <option value="@medecin.Id">@medecin.Nom</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1"><i class="fas fa-filter me-1"></i>Statut</label>
+                    <select id="filterStatut" class="form-select">
+                        <option value="">Tous les statuts</option>
+                        <option value="En attente">En attente</option>
+                        <option value="Confirmé">Confirmé</option>
+                        <option value="Annulé">Annulé</option>
+                        <option value="Terminé">Terminé</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label mb-1">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button id="btnToday" class="btn btn-outline-primary flex-fill">
+                            <i class="fas fa-calendar-day me-1"></i>Aujourd'hui
+                        </button>
+                        <button id="btnRefresh" class="btn btn-outline-secondary">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Légende -->
+    <div class="mb-3">
+        <span class="badge me-2" style="background-color: #ffc107; color: #000;">
+            <i class="fas fa-clock me-1"></i>En attente
+        </span>
+        <span class="badge me-2" style="background-color: #28a745;">
+            <i class="fas fa-check me-1"></i>Confirmé
+        </span>
+        <span class="badge me-2" style="background-color: #dc3545;">
+            <i class="fas fa-times me-1"></i>Annulé
+        </span>
+        <span class="badge me-2" style="background-color: #17a2b8;">
+            <i class="fas fa-flag-checkered me-1"></i>Terminé
+        </span>
+    </div>
+
+    <!-- Calendrier -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div id="calendar"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Détails RDV -->
+<div class="modal fade" id="rdvModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-check me-2"></i>Détails du Rendez-vous
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Patient</label>
+                    <p class="fw-bold mb-0" id="modalPatient"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Médecin</label>
+                    <p class="fw-bold mb-0" id="modalMedecin"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Spécialité</label>
+                    <p class="mb-0" id="modalSpecialite"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Date & Heure</label>
+                    <p class="fw-bold mb-0" id="modalDate"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Statut</label>
+                    <p class="mb-0"><span id="modalStatut" class="badge"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <a id="btnEditRdv" href="#" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+                <button id="btnConfirmRdv" class="btn btn-success" style="display:none;">
+                    <i class="fas fa-check me-1"></i>Confirmer
+                </button>
+                <button id="btnCancelRdv" class="btn btn-danger" style="display:none;">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+    <style>
+        #calendar {
+            min-height: 600px;
+        }
+
+        .fc-event {
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 2px 5px;
+        }
+
+            .fc-event:hover {
+                opacity: 0.9;
+            }
+
+        .fc-toolbar-title {
+            font-size: 1.3rem !important;
+        }
+
+        .fc-button-primary {
+            background-color: #667eea !important;
+            border-color: #667eea !important;
+        }
+
+            .fc-button-primary:hover {
+                background-color: #5a6fd6 !important;
+            }
+
+        .fc-day-today {
+            background-color: rgba(102, 126, 234, 0.1) !important;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var currentRdvId = null;
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'fr',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                buttonText: {
+                    today: "Aujourd'hui",
+                    month: 'Mois',
+                    week: 'Semaine',
+                    day: 'Jour',
+                    list: 'Liste'
+                },
+                slotMinTime: '08:00:00',
+                slotMaxTime: '20:00:00',
+                allDaySlot: false,
+                weekends: true,
+                navLinks: true,
+                editable: false,
+                selectable: true,
+                selectMirror: true,
+                dayMaxEvents: true,
+
+                // Charger les événements depuis le serveur
+                events: function(info, successCallback, failureCallback) {
+                    var medecinId = document.getElementById('filterMedecin').value;
+                    var statut = document.getElementById('filterStatut').value;
+
+                    var url = '/RendezVous/GetCalendarEvents?start=' + info.startStr + '&end=' + info.endStr;
+                    if (medecinId) url += '&medecinId=' + medecinId;
+                    if (statut) url += '&status=' + encodeURIComponent(statut);
+
+                    fetch(url)
+                        .then(response => response.json())
+                        .then(data => {
+                            successCallback(data);
+                        })
+                        .catch(error => {
+                            console.error('Erreur:', error);
+                            failureCallback(error);
+                        });
+                },
+
+                // Clic sur un événement
+                eventClick: function(info) {
+                    currentRdvId = info.event.id;
+                    var props = info.event.extendedProps;
+
+                    document.getElementById('modalPatient').textContent = props.patient;
+                    document.getElementById('modalMedecin').textContent = props.medecin;
+                    document.getElementById('modalSpecialite').textContent = props.specialite || '-';
+                    document.getElementById('modalDate').textContent = formatDate(info.event.start);
+
+                    var statutBadge = document.getElementById('modalStatut');
+                    statutBadge.textContent = props.statut;
+                    statutBadge.className = 'badge ' + getStatutClass(props.statut);
+
+                    document.getElementById('btnEditRdv').href = '/RendezVous/Edit/' + currentRdvId;
+
+                    // Afficher/masquer les boutons selon le statut
+                    var btnConfirm = document.getElementById('btnConfirmRdv');
+                    var btnCancel = document.getElementById('btnCancelRdv');
+
+                    if (props.statut === 'En attente') {
+                        btnConfirm.style.display = 'inline-block';
+                        btnCancel.style.display = 'inline-block';
+                    } else if (props.statut === 'Confirmé') {
+                        btnConfirm.style.display = 'none';
+                        btnCancel.style.display = 'inline-block';
+                    } else {
+                        btnConfirm.style.display = 'none';
+                        btnCancel.style.display = 'none';
+                    }
+
+                    var modal = new bootstrap.Modal(document.getElementById('rdvModal'));
+                    modal.show();
+                },
+
+                // Clic sur une date vide pour créer un RDV
+                select: function(info) {
+                    if (info.start > new Date()) {
+                        var dateStr = info.start.toISOString().slice(0, 16);
+                        window.location.href = '/RendezVous/Create?dateHeure=' + dateStr;
+                    }
+                },
+
+                // Tooltip au survol
+                eventDidMount: function(info) {
+                    var props = info.event.extendedProps;
+                    info.el.title = props.patient + ' - ' + props.medecin + ' (' + props.statut + ')';
+                }
+            });
+
+            calendar.render();
+
+            // Filtres
+            document.getElementById('filterMedecin').addEventListener('change', function() {
+                calendar.refetchEvents();
+            });
+
+            document.getElementById('filterStatut').addEventListener('change', function() {
+                calendar.refetchEvents();
+            });
+
+            document.getElementById('btnToday').addEventListener('click', function() {
+                calendar.today();
+            });
+
+            document.getElementById('btnRefresh').addEventListener('click', function() {
+                calendar.refetchEvents();
+            });
+
+            // Confirmer RDV
+            document.getElementById('btnConfirmRdv').addEventListener('click', function() {
+                if (currentRdvId) {
+                    fetch('/RendezVous/ConfirmRdv/' + currentRdvId, { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                bootstrap.Modal.getInstance(document.getElementById('rdvModal')).hide();
+                                calendar.refetchEvents();
+                                showToast('RDV confirmé avec succès', 'success');
+                            }
+                        });
+                }
+            });
+
+            // Annuler RDV
+            document.getElementById('btnCancelRdv').addEventListener('click', function() {
+                if (currentRdvId && confirm('Voulez-vous vraiment annuler ce rendez-vous ?')) {
+                    var raison = prompt('Raison de l\'annulation (optionnel):');
+                    fetch('/RendezVous/CancelRdv/' + currentRdvId + '?raison=' + encodeURIComponent(raison || ''), { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                bootstrap.Modal.getInstance(document.getElementById('rdvModal')).hide();
+                                calendar.refetchEvents();
+                                showToast('RDV annulé', 'warning');
+                            }
+                        });
+                }
+            });
+
+            function formatDate(date) {
+                return date.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            function getStatutClass(statut) {
+                switch(statut) {
+                    case 'Confirmé': return 'bg-success';
+                    case 'En attente': return 'bg-warning text-dark';
+                    case 'Annulé': return 'bg-danger';
+                    case 'Terminé': return 'bg-info';
+                    default: return 'bg-secondary';
+                }
+            }
+
+            function showToast(message, type) {
+                // Simple alert si pas de système toast
+                alert(message);
+            }
+        });
+    </script>
+}

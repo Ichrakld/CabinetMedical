@@ -8,82 +8,515 @@
     .rdv-card {
         border-left: 4px solid #667eea;
         transition: all 0.3s;
+        height: 100%;
     }
 
-        .rdv-card:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
+    .rdv-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
 
     .status-enattente {
         border-left-color: #ffc107;
     }
 
-    .status-confirme {
-        border-left-color: #198754;
+    .status-confirmé {
+        border-left-color: #28a745;
     }
 
-    .status-annule {
+    .status-annulé {
         border-left-color: #dc3545;
     }
 
-    .status-termine {
+    .status-terminé {
         border-left-color: #6c757d;
+    }
+
+    .badge-status {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .filter-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+    }
+
+    .quick-filter-btn {
+        min-width: 120px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #667eea;
+        border-color: #667eea;
     }
 </style>
 
-<div class="page-header">
-    <h1><i class="fas fa-calendar-check"></i> Gestion des Rendez-vous</h1>
-    <p class="mb-0">Planning des consultations</p>
-</div>
+<div class="container-fluid px-4">
+    <!-- En-tête avec titre et bouton -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-calendar-alt text-primary"></i> Gestion des Rendez-vous</h2>
+            <p class="text-muted mb-0">Planification et suivi des consultations médicales</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus-circle"></i> Nouveau Rendez-vous
+        </a>
+    </div>
 
-<div class="mb-4">
-    <a asp-action="Create" class="btn btn-success btn-custom">
-        <i class="fas fa-plus-circle"></i> Nouveau Rendez-vous
-    </a>
-</div>
-
-<div class="row">
-    @if (Model != null && Model.Any())
-    {
-        @foreach (var item in Model)
-        {
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card rdv-card status-@item.Statut?.ToLower().Replace(" ", "")">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-calendar-alt"></i> RDV #@item.NumCom
-                        </h5>
-                        <p class="card-text">
-                            <strong><i class="fas fa-clock"></i> Date:</strong> @item.DateHeure.ToString("dd/MM/yyyy HH:mm")<br>
-                            <strong><i class="fas fa-user-injured"></i> Patient:</strong> @item.Patient?.IdNavigation?.Nom @item.Patient?.IdNavigation?.Prenom<br>
-                            <strong><i class="fas fa-user-md"></i> Médecin:</strong> @item.Medecin?.IdNavigation?.Nom<br>
-                            <strong><i class="fas fa-info-circle"></i> Statut:</strong>
-                            <span class="badge bg-warning">@item.Statut</span>
-                        </p>
-                        <div class="d-flex justify-content-between">
-                            <a asp-action="Details" asp-route-id="@item.NumCom" class="btn btn-sm btn-info text-white">
-                                <i class="fas fa-eye"></i> Détails
-                            </a>
-                            <a asp-action="Edit" asp-route-id="@item.NumCom" class="btn btn-sm btn-warning text-white">
-                                <i class="fas fa-edit"></i> Modifier
-                            </a>
-                            <a asp-action="Delete" asp-route-id="@item.NumCom" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash-alt"></i> Supprimer
-                            </a>
+    <!-- Cartes de statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-start border-primary border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total RDV</p>
+                            <h4 class="mb-0">@Model.Count()</h4>
+                        </div>
+                        <div class="avatar-sm bg-primary bg-opacity-10 rounded">
+                            <i class="fas fa-calendar-alt text-primary fs-4"></i>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-success border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Confirmés</p>
+                            <h4 class="mb-0">@Model.Count(r => r.Statut == "Confirmé")</h4>
+                        </div>
+                        <div class="avatar-sm bg-success bg-opacity-10 rounded">
+                            <i class="fas fa-check-circle text-success fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">En attente</p>
+                            <h4 class="mb-0">@Model.Count(r => r.Statut == "En attente")</h4>
+                        </div>
+                        <div class="avatar-sm bg-warning bg-opacity-10 rounded">
+                            <i class="fas fa-clock text-warning fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-start border-info border-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Aujourd'hui</p>
+                            <h4 class="mb-0">@Model.Count(r => r.DateHeure.Date == DateTime.Today)</h4>
+                        </div>
+                        <div class="avatar-sm bg-info bg-opacity-10 rounded">
+                            <i class="fas fa-calendar-day text-info fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card filter-card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3"><i class="fas fa-filter"></i> Filtres de recherche</h5>
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Recherche</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               placeholder="Nom patient/médecin..." value="@ViewBag.CurrentSearch">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="statut" class="form-label">Statut</label>
+                        <select class="form-select" id="statut" name="statut">
+                            <option value="">Tous les statuts</option>
+                            <option value="En attente" selected="@(ViewBag.CurrentStatut == "En attente")">En attente</option>
+                            <option value="Confirmé" selected="@(ViewBag.CurrentStatut == "Confirmé")">Confirmé</option>
+                            <option value="Annulé" selected="@(ViewBag.CurrentStatut == "Annulé")">Annulé</option>
+                            <option value="Terminé" selected="@(ViewBag.CurrentStatut == "Terminé")">Terminé</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="medecinId" class="form-label">Médecin</label>
+                        <select class="form-select" id="medecinId" name="medecinId" asp-items="ViewBag.Medecins">
+                            <option value="">Tous les médecins</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="dateDebut" class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="dateDebut" name="dateDebut" value="@ViewBag.DateDebut">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="dateFin" class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="dateFin" name="dateFin" value="@ViewBag.DateFin">
+                    </div>
+                    
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filtres rapides -->
+    <div class="mb-4">
+        <div class="d-flex flex-wrap gap-2">
+            <a href="@Url.Action("Index")" 
+               class="btn btn-outline-secondary quick-filter-btn @(ViewBag.Periode == null ? "active" : "")">
+                <i class="fas fa-list"></i> Tous
+            </a>
+            <a href="@Url.Action("Index", new { periode = "aujourd'hui" })" 
+               class="btn btn-outline-primary quick-filter-btn @(ViewBag.Periode == "aujourd'hui" ? "active" : "")">
+                <i class="fas fa-calendar-day"></i> Aujourd'hui
+            </a>
+            <a href="@Url.Action("Index", new { periode = "semaine" })" 
+               class="btn btn-outline-primary quick-filter-btn @(ViewBag.Periode == "semaine" ? "active" : "")">
+                <i class="fas fa-calendar-week"></i> Cette semaine
+            </a>
+            <a href="@Url.Action("Index", new { periode = "mois" })" 
+               class="btn btn-outline-primary quick-filter-btn @(ViewBag.Periode == "mois" ? "active" : "")">
+                <i class="fas fa-calendar-alt"></i> Ce mois
+            </a>
+            
+            <div class="ms-auto">
+                <a href="@Url.Action("Calendrier")" class="btn btn-success">
+                    <i class="fas fa-calendar"></i> Vue Calendrier
+                </a>
+                <a href="@Url.Action("ExportExcel")" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel"></i> Exporter
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des rendez-vous -->
+    @if (Model.Any())
+    {
+        <div class="row">
+            @foreach (var item in Model)
+            {
+                var statusClass = "status-" + item.Statut?.ToLower().Replace(" ", "");
+                var badgeClass = item.Statut switch
+                {
+                    "Confirmé" => "bg-success",
+                    "En attente" => "bg-warning",
+                    "Annulé" => "bg-danger",
+                    "Terminé" => "bg-secondary",
+                    _ => "bg-info"
+                };
+                
+                var isToday = item.DateHeure.Date == DateTime.Today;
+                var isPast = item.DateHeure < DateTime.Now;
+
+                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                    <div class="card rdv-card @statusClass">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title mb-1">
+                                        <i class="fas fa-calendar-check text-primary"></i> 
+                                        RDV #@item.NumCom
+                                    </h5>
+                                    <span class="badge @badgeClass badge-status">
+                                        @item.Statut
+                                    </span>
+                                    @if (isToday)
+                                    {
+                                        <span class="badge bg-info badge-status">Aujourd'hui</span>
+                                    }
+                                    @if (isPast && item.Statut != "Terminé" && item.Statut != "Annulé")
+                                    {
+                                        <span class="badge bg-danger badge-status">Passé</span>
+                                    }
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" asp-action="Details" asp-route-id="@item.NumCom">
+                                                <i class="fas fa-eye text-info"></i> Détails
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" asp-action="Edit" asp-route-id="@item.NumCom">
+                                                <i class="fas fa-edit text-warning"></i> Modifier
+                                            </a>
+                                        </li>
+                                        @if (item.Statut == "En attente")
+                                        {
+                                            <li>
+                                                <button class="dropdown-item btn-confirm" data-id="@item.NumCom">
+                                                    <i class="fas fa-check-circle text-success"></i> Confirmer
+                                                </button>
+                                            </li>
+                                        }
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" asp-action="Delete" asp-route-id="@item.NumCom">
+                                                <i class="fas fa-trash-alt"></i> Supprimer
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-clock text-muted me-2"></i>
+                                    <div>
+                                        <strong>@item.DateHeure.ToString("dddd dd MMMM yyyy")</strong>
+                                        <div class="text-muted small">
+                                            <i class="far fa-clock"></i> @item.DateHeure.ToString("HH:mm") - @item.DateHeure.AddHours(1).ToString("HH:mm")
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="bg-light p-2 rounded">
+                                        <small class="text-muted d-block">Patient</small>
+                                        <strong>
+                                            @item.Patient?.IdNavigation?.Nom @item.Patient?.IdNavigation?.Prenom
+                                        </strong>
+                                        @if (!string.IsNullOrEmpty(item.Patient?.IdNavigation?.Telephone))
+                                        {
+                                            <div class="text-muted small">
+                                                <i class="fas fa-phone"></i> @item.Patient.IdNavigation.Telephone
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="bg-light p-2 rounded">
+                                        <small class="text-muted d-block">Médecin</small>
+                                        <strong class="text-success">
+                                            Dr. @item.Medecin?.IdNavigation?.Nom
+                                        </strong>
+                                        <div class="text-muted small">
+                                            @item.Medecin?.Specialite
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 d-flex justify-content-between">
+                                <a asp-action="Details" asp-route-id="@item.NumCom" 
+                                   class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-info-circle"></i> Détails
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@item.NumCom" 
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-edit"></i> Modifier
+                                </a>
+                                @if (item.Statut == "En attente")
+                                {
+                                    <button class="btn btn-sm btn-outline-success btn-confirm" data-id="@item.NumCom">
+                                        <i class="fas fa-check"></i> Confirmer
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        @if (ViewBag.TotalPages > 1)
+        {
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { 
+                            page = ViewBag.CurrentPage - 1,
+                            search = ViewBag.CurrentSearch,
+                            statut = ViewBag.CurrentStatut,
+                            dateDebut = ViewBag.DateDebut,
+                            dateFin = ViewBag.DateFin,
+                            medecinId = ViewBag.Medecins?.SelectedValue,
+                            periode = ViewBag.Periode,
+                            sortBy = ViewBag.SortBy,
+                            sortOrder = ViewBag.SortOrder
+                        })" aria-label="Précédent">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        <li class="page-item @(ViewBag.CurrentPage == i ? "active" : "")">
+                            <a class="page-link" href="@Url.Action("Index", new { 
+                                page = i,
+                                search = ViewBag.CurrentSearch,
+                                statut = ViewBag.CurrentStatut,
+                                dateDebut = ViewBag.DateDebut,
+                                dateFin = ViewBag.DateFin,
+                                medecinId = ViewBag.Medecins?.SelectedValue,
+                                periode = ViewBag.Periode,
+                                sortBy = ViewBag.SortBy,
+                                sortOrder = ViewBag.SortOrder
+                            })">@i</a>
+                        </li>
+                    }
+                    
+                    <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { 
+                            page = ViewBag.CurrentPage + 1,
+                            search = ViewBag.CurrentSearch,
+                            statut = ViewBag.CurrentStatut,
+                            dateDebut = ViewBag.DateDebut,
+                            dateFin = ViewBag.DateFin,
+                            medecinId = ViewBag.Medecins?.SelectedValue,
+                            periode = ViewBag.Periode,
+                            sortBy = ViewBag.SortBy,
+                            sortOrder = ViewBag.SortOrder
+                        })" aria-label="Suivant">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         }
     }
     else
     {
-        <div class="col-12">
-            <div class="alert alert-info text-center">
-                <i class="fas fa-calendar-times fa-3x mb-3"></i>
-                <p>Aucun rendez-vous planifié</p>
+        <div class="text-center py-5">
+            <div class="mb-4">
+                <i class="fas fa-calendar-times fa-4x text-muted"></i>
             </div>
+            <h4 class="text-muted mb-3">Aucun rendez-vous trouvé</h4>
+            <p class="text-muted mb-4">
+                @if (!string.IsNullOrEmpty(ViewBag.CurrentSearch) || 
+                     !string.IsNullOrEmpty(ViewBag.CurrentStatut) || 
+                     !string.IsNullOrEmpty(ViewBag.Periode))
+                {
+                    <text>Aucun rendez-vous ne correspond à vos critères de recherche.</text>
+                }
+                else
+                {
+                    <text>Commencez par créer votre premier rendez-vous.</text>
+                }
+            </p>
+            <a asp-action="Create" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle"></i> Créer un rendez-vous
+            </a>
+            @if (!string.IsNullOrEmpty(ViewBag.CurrentSearch) || 
+                 !string.IsNullOrEmpty(ViewBag.CurrentStatut) || 
+                 !string.IsNullOrEmpty(ViewBag.Periode))
+            {
+                <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-lg ms-2">
+                    <i class="fas fa-times"></i> Réinitialiser les filtres
+                </a>
+            }
         </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        // Confirmation de RDV
+        document.querySelectorAll('.btn-confirm').forEach(button => {
+            button.addEventListener('click', function() {
+                const rdvId = this.getAttribute('data-id');
+                
+                Swal.fire({
+                    title: 'Confirmer le rendez-vous',
+                    text: 'Êtes-vous sûr de vouloir confirmer ce rendez-vous ?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Oui, confirmer',
+                    cancelButtonText: 'Annuler',
+                    confirmButtonColor: '#28a745'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('@Url.Action("ConfirmRdv")/' + rdvId, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    title: 'Succès !',
+                                    text: 'Le rendez-vous a été confirmé.',
+                                    icon: 'success',
+                                    confirmButtonText: 'OK'
+                                }).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Erreur',
+                                    text: 'Impossible de confirmer le rendez-vous.',
+                                    icon: 'error',
+                                    confirmButtonText: 'OK'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire({
+                                title: 'Erreur',
+                                text: 'Une erreur est survenue.',
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                        });
+                    }
+                });
+            });
+        });
+
+        // Auto-submit des filtres
+        document.getElementById('search').addEventListener('input', function() {
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 500);
+        });
+
+        document.getElementById('statut').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('medecinId').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+
+        // Initialiser les sélecteurs de date
+        document.getElementById('dateDebut').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+
+        document.getElementById('dateFin').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    </script>
+}

@@ -1,5 +1,6 @@
 ﻿using GestionCabinetMedical.Models;
 using GestionCabinetMedical.Areas.Identity.Data;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,12 +25,126 @@ namespace GestionCabinetMedical.Controllers
             _userManager = userManager;
         }
 
-        // GET: Patients
-        public async Task<IActionResult> Index()
+        // ============================================================
+        // GET: Patients - MODIFIÉ avec filtres, recherche et statistiques
+        // ============================================================
+        public async Task<IActionResult> Index(
+            string? searchTerm,
+            string? statut,
+            string? sortBy = "nom",
+            int page = 1)
         {
-            var bdCabinetMedicalContext = _context.Patients.Include(p => p.IdNavigation);
-            return View(await bdCabinetMedicalContext.ToListAsync());
+            var pageSize = 10;
+            var query = _context.Patients
+                .Include(p => p.IdNavigation)
+                .Include(p => p.RendezVous)
+                .Include(p => p.DossierMedicals)
+                .AsQueryable();
+
+            // ===============================================
+            // Filtrage par recherche textuelle
+            // ===============================================
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(p =>
+                    (p.IdNavigation.Nom != null && p.IdNavigation.Nom.ToLower().Contains(term)) ||
+                    (p.IdNavigation.Prenom != null && p.IdNavigation.Prenom.ToLower().Contains(term)) ||
+                    (p.IdNavigation.Email != null && p.IdNavigation.Email.ToLower().Contains(term)) ||
+                    (p.IdNavigation.Telephone != null && p.IdNavigation.Telephone.Contains(term)) ||
+                    (p.NumSecuriteSociale != null && p.NumSecuriteSociale.Contains(term))
+                );
+            }
+
+            // ===============================================
+            // Filtrage par statut (basé sur EstActif)
+            // ===============================================
+            if (!string.IsNullOrWhiteSpace(statut))
+            {
+                bool estActif = statut.ToLower() == "actif";
+                query = query.Where(p => p.IdNavigation.EstActif == estActif);
+            }
+
+            // ===============================================
+            // Calcul des statistiques (avant pagination)
+            // ===============================================
+            var allPatients = await _context.Patients
+                .Include(p => p.IdNavigation)
+                .Include(p => p.RendezVous)
+                .ToListAsync();
+
+            var dateLimite30j = DateTime.Now.AddDays(-30);
+            var stats = new
+            {
+                Total = allPatients.Count,
+                Actifs = allPatients.Count(p => p.IdNavigation?.EstActif == true),
+                Inactifs = allPatients.Count(p => p.IdNavigation?.EstActif != true),
+                AvecRdvRecent = allPatients.Count(p =>
+                    p.RendezVous != null &&
+                    p.RendezVous.Any(r => r.DateHeure >= dateLimite30j))
+            };
+
+            // ===============================================
+            // Tri
+            // ===============================================
+            query = sortBy?.ToLower() switch
+            {
+                "rdv" => query.OrderByDescending(p =>
+                    p.RendezVous.OrderByDescending(r => r.DateHeure).FirstOrDefault().DateHeure),
+                "nss" => query.OrderBy(p => p.NumSecuriteSociale),
+                _ => query.OrderBy(p => p.IdNavigation.Nom).ThenBy(p => p.IdNavigation.Prenom)
+            };
+
+            // ===============================================
+            // Pagination
+            // ===============================================
+            var totalItems = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            page = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
+
+            var patients = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new PatientListItem
+                {
+                    Id = p.Id,
+                    Nom = p.IdNavigation.Nom,
+                    Prenom = p.IdNavigation.Prenom,
+                    Email = p.IdNavigation.Email,
+                    Telephone = p.IdNavigation.Telephone,
+                    NumSecuriteSociale = p.NumSecuriteSociale,
+                    EstActif = p.IdNavigation.EstActif,
+                    DernierRdv = p.RendezVous
+                        .OrderByDescending(r => r.DateHeure)
+                        .Select(r => (DateTime?)r.DateHeure)
+                        .FirstOrDefault(),
+                    NombreRdv = p.RendezVous.Count,
+                    NombreDossiers = p.DossierMedicals.Count,
+                    IdNavigation = p.IdNavigation
+                })
+                .ToListAsync();
+
+            var viewModel = new PatientIndexViewModel
+            {
+                Patients = patients,
+                TotalPatients = stats.Total,
+                PatientsActifs = stats.Actifs,
+                PatientsInactifs = stats.Inactifs,
+                PatientsAvecRdvRecent = stats.AvecRdvRecent,
+                SearchTerm = searchTerm,
+                Statut = statut,
+                SortBy = sortBy,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages
+            };
+
+            return View(viewModel);
         }
+
+        // ============================================================
+        // Les autres actions restent INCHANGÉES
+        // ============================================================
 
         // GET: Patients/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -39,7 +154,6 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // Charger le patient avec TOUTES ses relations
             var patient = await _context.Patients
                 .Include(p => p.IdNavigation)
                 .Include(p => p.RendezVous)
@@ -70,33 +184,26 @@ namespace GestionCabinetMedical.Controllers
                 .SelectMany(d => d.Consultations ?? Enumerable.Empty<Consultation>())
                 .Sum(c => c.Traitements?.Count ?? 0) ?? 0;
 
-            // Prochain RDV
             ViewBag.ProchainRdv = patient.RendezVous?
                 .Where(r => r.DateHeure > DateTime.Now && r.Statut != "Annulé")
                 .OrderBy(r => r.DateHeure)
                 .FirstOrDefault();
 
-            // Dernier RDV
             ViewBag.DernierRdv = patient.RendezVous?
                 .Where(r => r.DateHeure <= DateTime.Now)
                 .OrderByDescending(r => r.DateHeure)
                 .FirstOrDefault();
 
-            // Dernière consultation
             ViewBag.DerniereConsultation = patient.DossierMedicals?
                 .SelectMany(d => d.Consultations ?? Enumerable.Empty<Consultation>())
                 .OrderByDescending(c => c.DateConsultation)
                 .FirstOrDefault();
 
-            // Médecins traitants (distincts)
             ViewBag.MedecinsTraitants = patient.DossierMedicals?
                 .Select(d => d.Medecin)
                 .Where(m => m != null)
                 .DistinctBy(m => m.Id)
                 .ToList();
-
-            // Calcul de l'âge si date de naissance disponible
-            // ViewBag.Age = CalculerAge(patient.DateNaissance);
 
             return View(patient);
         }
@@ -122,9 +229,6 @@ namespace GestionCabinetMedical.Controllers
         {
             if (ModelState.IsValid)
             {
-                // ===============================================
-                // ÉTAPE 1 : Créer l'utilisateur dans ASP.NET Identity
-                // ===============================================
                 var identityUser = new Userper
                 {
                     UserName = patient.IdNavigation.Email,
@@ -134,18 +238,12 @@ namespace GestionCabinetMedical.Controllers
                     PhoneNumber = patient.IdNavigation.Telephone
                 };
 
-                // Créer l'utilisateur avec le mot de passe fourni
                 var result = await _userManager.CreateAsync(identityUser, patient.IdNavigation.MotDePasse);
 
                 if (result.Succeeded)
                 {
-                    // Assigner le rôle PATIENT
                     await _userManager.AddToRoleAsync(identityUser, "PATIENT");
 
-                    // ===============================================
-                    // ÉTAPE 2 : Créer l'entrée dans la table Utilisateur 
-                    // et Patient de votre base métier
-                    // ===============================================
                     _context.Add(patient);
                     await _context.SaveChangesAsync();
 
@@ -154,7 +252,6 @@ namespace GestionCabinetMedical.Controllers
                 }
                 else
                 {
-                    // Afficher les erreurs de création Identity
                     foreach (var error in result.Errors)
                     {
                         ModelState.AddModelError(string.Empty, error.Description);
@@ -214,10 +311,8 @@ namespace GestionCabinetMedical.Controllers
                         return NotFound();
                     }
 
-                    // Récupérer l'ancien email avant modification
                     var ancienEmail = patientExist.IdNavigation.Email;
 
-                    // Mettre à jour les champs
                     patientExist.NumSecuriteSociale = patient.NumSecuriteSociale;
                     patientExist.IdNavigation.Nom = patient.IdNavigation.Nom;
                     patientExist.IdNavigation.Prenom = patient.IdNavigation.Prenom;
@@ -225,9 +320,6 @@ namespace GestionCabinetMedical.Controllers
                     patientExist.IdNavigation.Telephone = patient.IdNavigation.Telephone;
                     patientExist.IdNavigation.EstActif = patient.IdNavigation.EstActif;
 
-                    // ===============================================
-                    // SYNCHRONISER avec ASP.NET Identity si l'email a changé
-                    // ===============================================
                     var identityUser = await _userManager.FindByEmailAsync(ancienEmail);
                     if (identityUser != null)
                     {
@@ -276,7 +368,6 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // Compter les dépendances pour informer l'utilisateur
             var rdvCount = await _context.RendezVous.CountAsync(r => r.PatientId == id);
             var dossierCount = await _context.DossierMedicals.CountAsync(d => d.PatientId == id);
 
@@ -291,7 +382,6 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            // Utiliser une transaction pour garantir l'intégrité
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
@@ -302,9 +392,6 @@ namespace GestionCabinetMedical.Controllers
 
                 if (patient != null)
                 {
-                    // ===============================================
-                    // ÉTAPE 1 : Récupérer les DossierMedicals du patient
-                    // ===============================================
                     var dossierIds = await _context.DossierMedicals
                         .Where(d => d.PatientId == id)
                         .Select(d => d.NumDossier)
@@ -312,9 +399,6 @@ namespace GestionCabinetMedical.Controllers
 
                     if (dossierIds.Any())
                     {
-                        // ===============================================
-                        // ÉTAPE 2 : Récupérer les Consultations de ces dossiers
-                        // ===============================================
                         var consultationIds = await _context.Consultations
                             .Where(c => dossierIds.Contains(c.DossierMedicalId))
                             .Select(c => c.NumDetail)
@@ -322,9 +406,6 @@ namespace GestionCabinetMedical.Controllers
 
                         if (consultationIds.Any())
                         {
-                            // ===============================================
-                            // ÉTAPE 3 : Supprimer les Traitements de ces consultations
-                            // ===============================================
                             var traitements = await _context.Traitements
                                 .Where(t => consultationIds.Contains(t.ConsultationId))
                                 .ToListAsync();
@@ -335,9 +416,6 @@ namespace GestionCabinetMedical.Controllers
                                 await _context.SaveChangesAsync();
                             }
 
-                            // ===============================================
-                            // ÉTAPE 4 : Supprimer les Consultations
-                            // ===============================================
                             var consultations = await _context.Consultations
                                 .Where(c => dossierIds.Contains(c.DossierMedicalId))
                                 .ToListAsync();
@@ -346,9 +424,6 @@ namespace GestionCabinetMedical.Controllers
                             await _context.SaveChangesAsync();
                         }
 
-                        // ===============================================
-                        // ÉTAPE 5 : Supprimer les DossierMedicals
-                        // ===============================================
                         var dossiers = await _context.DossierMedicals
                             .Where(d => d.PatientId == id)
                             .ToListAsync();
@@ -357,9 +432,6 @@ namespace GestionCabinetMedical.Controllers
                         await _context.SaveChangesAsync();
                     }
 
-                    // ===============================================
-                    // ÉTAPE 6 : Supprimer les Notifications liées aux RendezVous du patient
-                    // ===============================================
                     var rdvIds = await _context.RendezVous
                         .Where(r => r.PatientId == id)
                         .Select(r => r.NumCom)
@@ -378,9 +450,6 @@ namespace GestionCabinetMedical.Controllers
                         }
                     }
 
-                    // ===============================================
-                    // ÉTAPE 7 : Supprimer les RendezVous du patient
-                    // ===============================================
                     var rendezVous = await _context.RendezVous
                         .Where(r => r.PatientId == id)
                         .ToListAsync();
@@ -391,15 +460,9 @@ namespace GestionCabinetMedical.Controllers
                         await _context.SaveChangesAsync();
                     }
 
-                    // ===============================================
-                    // ÉTAPE 8 : Supprimer le Patient
-                    // ===============================================
                     _context.Patients.Remove(patient);
                     await _context.SaveChangesAsync();
 
-                    // ===============================================
-                    // ÉTAPE 9 : Supprimer l'Utilisateur (base métier)
-                    // ===============================================
                     var utilisateur = await _context.Utilisateurs.FindAsync(id);
                     if (utilisateur != null)
                     {
@@ -407,9 +470,6 @@ namespace GestionCabinetMedical.Controllers
                         await _context.SaveChangesAsync();
                     }
 
-                    // ===============================================
-                    // ÉTAPE 10 : Supprimer l'utilisateur ASP.NET Identity
-                    // ===============================================
                     var identityUser = await _userManager.FindByEmailAsync(patient.IdNavigation.Email);
                     if (identityUser != null)
                     {
@@ -417,19 +477,40 @@ namespace GestionCabinetMedical.Controllers
                     }
                 }
 
-                // Valider la transaction
                 await transaction.CommitAsync();
 
                 TempData["Success"] = "Patient et toutes ses données associées supprimés avec succès !";
             }
             catch (Exception ex)
             {
-                // Annuler la transaction en cas d'erreur
                 await transaction.RollbackAsync();
                 TempData["Error"] = $"Erreur lors de la suppression : {ex.Message}";
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // ============================================================
+        // AJAX: Toggle patient status (activer/désactiver)
+        // ============================================================
+        [HttpPost]
+        public async Task<IActionResult> ToggleStatus(int id)
+        {
+            var patient = await _context.Patients
+                .Include(p => p.IdNavigation)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (patient == null) return NotFound();
+
+            patient.IdNavigation.EstActif = !patient.IdNavigation.EstActif;
+            await _context.SaveChangesAsync();
+
+            return Json(new
+            {
+                success = true,
+                estActif = patient.IdNavigation.EstActif,
+                message = patient.IdNavigation.EstActif ? "Patient activé" : "Patient désactivé"
+            });
         }
 
         private bool PatientExists(int id)

@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using GestionCabinetMedical.Models; // Ajustez le namespace
 using Microsoft.AspNetCore.Identity;
 using GestionCabinetMedical.Areas.Identity.Data;
-
+using GestionCabinetMedical.Services;
+using GestionCabinetMedical.Helpers;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -16,6 +17,8 @@ builder.Services.AddDbContext<BdCabinetMedicalContext>(options =>
 builder.Services.AddDbContext<CabinetMedicalIdentityContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("CabinetMedicalConnection")));
 
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICrudNotificationHelper, CrudNotificationHelper>();
 builder.Services.AddIdentity<Userper, IdentityRole>(options => {
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = true;

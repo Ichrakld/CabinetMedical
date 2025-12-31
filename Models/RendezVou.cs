@@ -44,8 +44,8 @@ public partial class RendezVou
     public int PatientId { get; set; }
 
     public virtual Medecin Medecin { get; set; } = null!;
-
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+   
 
     public virtual Patient Patient { get; set; } = null!;
 }

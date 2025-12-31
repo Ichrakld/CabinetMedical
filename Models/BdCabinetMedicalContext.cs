@@ -123,13 +123,33 @@ public partial class BdCabinetMedicalContext : DbContext
             entity.Property(e => e.DateCreation)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
+
             entity.Property(e => e.Type).HasMaxLength(100);
 
-            entity.HasOne(d => d.RendezVous).WithMany(p => p.Notifications)
-                .HasForeignKey(d => d.RendezVousId)
-                .HasConstraintName("FK__Notificat__Rende__5CD6CB2B");
-        });
+            // ====== NOUVEAUX CHAMPS ======
 
+            entity.Property(e => e.EstLue)
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.UserId)
+                .IsRequired();
+
+            // ====== RELATIONS ======
+
+            // Relation existante avec RendezVous
+            entity.HasOne(d => d.RendezVous)
+                .WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.RendezVousId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK__Notificat__Rende__5CD6CB2B");
+
+            // Nouvelle relation avec Utilisateur
+            entity.HasOne(d => d.User)
+                .WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_Notification_Utilisateur");
+        });
         modelBuilder.Entity<Patient>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Patient__3214EC075743A3DC");

@@ -26,4 +26,5 @@ public partial class Utilisateur
     public virtual Patient? Patient { get; set; }
 
     public virtual Secretaire? Secretaire { get; set; }
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }
