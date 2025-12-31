@@ -161,6 +161,10 @@ public partial class BdCabinetMedicalContext : DbContext
             entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.NumSecuriteSociale).HasMaxLength(50);
 
+            
+            entity.Property(e => e.DateNaissance)
+                .HasColumnType("date");
+
             entity.HasOne(d => d.IdNavigation).WithOne(p => p.Patient)
                 .HasForeignKey<Patient>(d => d.Id)
                 .HasConstraintName("FK__Patient__Id__4222D4EF");
@@ -184,6 +188,8 @@ public partial class BdCabinetMedicalContext : DbContext
             entity.Property(e => e.Statut)
                 .HasMaxLength(50)
                 .HasDefaultValue("En attente");
+            entity.Property(e => e.Motif)
+                .HasMaxLength(500);
 
             entity.HasOne(d => d.Medecin).WithMany(p => p.RendezVous)
                 .HasForeignKey(d => d.MedecinId)

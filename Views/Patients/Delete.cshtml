@@ -1,64 +1,77 @@
 ﻿@model GestionCabinetMedical.Models.Patient
 
 @{
-    ViewData["Title"] = "Supprimer un Patient";
+    ViewData["Title"] = "Supprimer Patient";
 }
 
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-
-            <div class="text-center mb-4">
-                <h1 class="text-danger"><i class="fas fa-user-times"></i> Suppression de Patient</h1>
-                <p class="lead text-muted">Êtes-vous sûr de vouloir supprimer ce patient ?</p>
-            </div>
-
-            <div class="alert alert-warning border-warning shadow-sm" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Attention :</strong> Cette action est irréversible. Toutes les données associées (rendez-vous, dossiers médicaux) pourraient être affectées.
-            </div>
-
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0 text-secondary"><i class="fas fa-info-circle"></i> Détails du patient</h5>
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Confirmer la Suppression</h4>
                 </div>
                 <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4 text-muted">Nom complet</dt>
-                        <dd class="col-sm-8 fw-bold">
-                            @Html.DisplayFor(model => model.IdNavigation.Nom) @Html.DisplayFor(model => model.IdNavigation.Prenom)
-                        </dd>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Attention !</strong> Vous êtes sur le point de supprimer définitivement ce patient et toutes ses données associées.
+                    </div>
 
-                        <dt class="col-sm-4 text-muted">N° Sécurité Sociale</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-info text-dark">@Html.DisplayFor(model => model.NumSecuriteSociale)</span>
-                        </dd>
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-user me-2"></i>Informations du Patient</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Nom :</strong> @Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</p>
+                                    <p><strong>Email :</strong> @Model.IdNavigation?.Email</p>
+                                    <p><strong>Téléphone :</strong> @Model.IdNavigation?.Telephone</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>N° SS :</strong> <code>@Model.NumSecuriteSociale</code></p>
+                                    @if (Model.DateNaissance.HasValue)
+                                    {
+                                        <p><strong>Date de Naissance :</strong> @Model.DateNaissance?.ToString("dd/MM/yyyy")</p>
+                                        <p><strong>Âge :</strong> @Model.Age ans</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                        <dt class="col-sm-4 text-muted">Email</dt>
-                        <dd class="col-sm-8">
-                            @Html.DisplayFor(model => model.IdNavigation.Email)
-                        </dd>
+                    @if (ViewBag.RdvCount > 0 || ViewBag.DossierCount > 0)
+                    {
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-database me-2"></i>Données associées qui seront supprimées :</h6>
+                            <ul class="mb-0">
+                                @if (ViewBag.RdvCount > 0)
+                                {
+                                    <li><strong>@ViewBag.RdvCount</strong> rendez-vous</li>
+                                }
+                                @if (ViewBag.DossierCount > 0)
+                                {
+                                    <li><strong>@ViewBag.DossierCount</strong> dossiers médicaux (avec toutes les consultations et traitements)</li>
+                                }
+                                <li>Toutes les notifications associées</li>
+                                <li>Le compte utilisateur (connexion impossible après suppression)</li>
+                            </ul>
+                        </div>
+                    }
 
-                        <dt class="col-sm-4 text-muted">Téléphone</dt>
-                        <dd class="col-sm-8">
-                            @Html.DisplayFor(model => model.IdNavigation.Telephone)
-                        </dd>
-                    </dl>
+                    <form asp-action="Delete">
+                        <input type="hidden" asp-for="Id" />
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-1"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-trash me-1"></i>Confirmer la Suppression
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-
-            <form asp-action="Delete" class="text-center">
-                <input type="hidden" asp-for="Id" />
-
-                <button type="submit" class="btn btn-danger btn-lg px-4 me-2">
-                    <i class="fas fa-trash-alt me-2"></i> Confirmer la suppression
-                </button>
-
-                <a asp-action="Index" class="btn btn-secondary btn-lg px-4">
-                    <i class="fas fa-arrow-left me-2"></i> Annuler
-                </a>
-            </form>
-
         </div>
     </div>
 </div>

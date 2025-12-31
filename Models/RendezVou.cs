@@ -43,9 +43,12 @@ public partial class RendezVou
     [Display(Name = "Patient")]
     public int PatientId { get; set; }
 
+    [Display(Name = "Motif de consultation")]
+    [StringLength(500)]
+    public string? Motif { get; set; }
+
     public virtual Medecin Medecin { get; set; } = null!;
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
-   
 
     public virtual Patient Patient { get; set; } = null!;
 }

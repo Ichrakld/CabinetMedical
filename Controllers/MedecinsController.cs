@@ -39,7 +39,6 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
-            // Charger le médecin avec toutes ses relations
             var medecin = await _context.Medecins
                 .Include(m => m.IdNavigation)
                 .Include(m => m.RendezVous)
@@ -67,20 +66,17 @@ namespace GestionCabinetMedical.Controllers
             ViewBag.TotalDossiers = medecin.DossierMedicals?.Count ?? 0;
             ViewBag.TotalConsultations = medecin.DossierMedicals?.Sum(d => d.Consultations?.Count ?? 0) ?? 0;
 
-            // Prochains RDV (5)
             ViewBag.ProchainsRdv = medecin.RendezVous?
                 .Where(r => r.DateHeure > DateTime.Now && r.Statut != "Annulé")
                 .OrderBy(r => r.DateHeure)
                 .Take(5)
                 .ToList();
 
-            // RDV d'aujourd'hui
             ViewBag.RdvDuJour = medecin.RendezVous?
                 .Where(r => r.DateHeure.Date == DateTime.Today && r.Statut != "Annulé")
                 .OrderBy(r => r.DateHeure)
                 .ToList();
 
-            // Patients récents (5)
             ViewBag.PatientsRecents = medecin.DossierMedicals?
                 .OrderByDescending(d => d.NumDossier)
                 .Select(d => d.Patient)
@@ -105,9 +101,7 @@ namespace GestionCabinetMedical.Controllers
         {
             if (ModelState.IsValid)
             {
-                // ===============================================
-                // ÉTAPE 1 : Créer l'utilisateur dans ASP.NET Identity
-                // ===============================================
+                // 1. Créer l'utilisateur dans ASP.NET Identity
                 var identityUser = new Userper
                 {
                     UserName = medecin.IdNavigation.Email,
@@ -117,17 +111,13 @@ namespace GestionCabinetMedical.Controllers
                     PhoneNumber = medecin.IdNavigation.Telephone
                 };
 
-                // Créer l'utilisateur avec le mot de passe fourni
                 var result = await _userManager.CreateAsync(identityUser, medecin.IdNavigation.MotDePasse);
 
                 if (result.Succeeded)
                 {
-                    // Assigner le rôle MEDECIN
                     await _userManager.AddToRoleAsync(identityUser, "MEDECIN");
 
-                    // ===============================================
-                    // ÉTAPE 2 : Créer dans la base métier
-                    // ===============================================
+                    // 2. Créer dans la base métier
                     if (medecin.IdNavigation != null)
                     {
                         medecin.IdNavigation.EstActif = true;
@@ -141,7 +131,6 @@ namespace GestionCabinetMedical.Controllers
                 }
                 else
                 {
-                    // Afficher les erreurs de création Identity
                     foreach (var error in result.Errors)
                     {
                         ModelState.AddModelError(string.Empty, error.Description);
@@ -200,7 +189,6 @@ namespace GestionCabinetMedical.Controllers
                         return NotFound();
                     }
 
-                    // Récupérer l'ancien email
                     var ancienEmail = medecinExist.IdNavigation.Email;
 
                     // Mettre à jour la base métier
@@ -210,9 +198,7 @@ namespace GestionCabinetMedical.Controllers
                     medecinExist.IdNavigation.Email = medecin.IdNavigation.Email;
                     medecinExist.IdNavigation.Telephone = medecin.IdNavigation.Telephone;
 
-                    // ===============================================
-                    // SYNCHRONISER avec ASP.NET Identity
-                    // ===============================================
+                    // Synchroniser avec ASP.NET Identity
                     var identityUser = await _userManager.FindByEmailAsync(ancienEmail);
                     if (identityUser != null)
                     {
@@ -262,39 +248,133 @@ namespace GestionCabinetMedical.Controllers
                 return NotFound();
             }
 
+            // Compter les données associées
+            var rdvCount = await _context.RendezVous.CountAsync(r => r.MedecinId == id);
+            var dossierCount = await _context.DossierMedicals.CountAsync(d => d.MedecinId == id);
+
+            ViewBag.RdvCount = rdvCount;
+            ViewBag.DossierCount = dossierCount;
+
             return View(medecin);
         }
 
-        // POST: Medecins/Delete/5
+        // POST: Medecins/Delete/5 - CORRIGÉ AVEC SUPPRESSION IDENTITY
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var medecin = await _context.Medecins
-                .Include(m => m.IdNavigation)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            if (medecin != null)
+            try
             {
-                // ===============================================
-                // SUPPRIMER aussi l'utilisateur ASP.NET Identity
-                // ===============================================
-                var identityUser = await _userManager.FindByEmailAsync(medecin.IdNavigation.Email);
-                if (identityUser != null)
-                {
-                    await _userManager.DeleteAsync(identityUser);
-                }
+                var medecin = await _context.Medecins
+                    .Include(m => m.IdNavigation)
+                    .FirstOrDefaultAsync(m => m.Id == id);
 
-                // Supprimer de la base métier
-                var utilisateur = await _context.Utilisateurs.FindAsync(id);
-                if (utilisateur != null)
+                if (medecin != null)
                 {
-                    _context.Utilisateurs.Remove(utilisateur);
+                    var email = medecin.IdNavigation.Email;
+
+                    // 1. Supprimer les notifications liées aux RDV du médecin
+                    var rdvIds = await _context.RendezVous
+                        .Where(r => r.MedecinId == id)
+                        .Select(r => r.NumCom)
+                        .ToListAsync();
+
+                    if (rdvIds.Any())
+                    {
+                        var notifications = await _context.Notifications
+                            .Where(n => rdvIds.Contains(n.RendezVousId ?? 0))
+                            .ToListAsync();
+
+                        if (notifications.Any())
+                        {
+                            _context.Notifications.RemoveRange(notifications);
+                        }
+                    }
+
+                    // 2. Supprimer les notifications de l'utilisateur
+                    var userNotifications = await _context.Notifications
+                        .Where(n => n.UserId == id)
+                        .ToListAsync();
+
+                    if (userNotifications.Any())
+                    {
+                        _context.Notifications.RemoveRange(userNotifications);
+                    }
+
+                    // 3. Supprimer les RDV du médecin
+                    var rendezVous = await _context.RendezVous
+                        .Where(r => r.MedecinId == id)
+                        .ToListAsync();
+
+                    if (rendezVous.Any())
+                    {
+                        _context.RendezVous.RemoveRange(rendezVous);
+                    }
+
+                    // 4. Gérer les dossiers médicaux (réassigner ou supprimer)
+                    var dossiers = await _context.DossierMedicals
+                        .Where(d => d.MedecinId == id)
+                        .Include(d => d.Consultations)
+                            .ThenInclude(c => c.Traitements)
+                        .ToListAsync();
+
+                    foreach (var dossier in dossiers)
+                    {
+                        // Supprimer les traitements
+                        foreach (var consultation in dossier.Consultations)
+                        {
+                            if (consultation.Traitements?.Any() == true)
+                            {
+                                _context.Traitements.RemoveRange(consultation.Traitements);
+                            }
+                        }
+
+                        // Supprimer les consultations
+                        if (dossier.Consultations?.Any() == true)
+                        {
+                            _context.Consultations.RemoveRange(dossier.Consultations);
+                        }
+                    }
+
+                    // Supprimer les dossiers
+                    if (dossiers.Any())
+                    {
+                        _context.DossierMedicals.RemoveRange(dossiers);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    // 5. Supprimer le médecin
+                    _context.Medecins.Remove(medecin);
+                    await _context.SaveChangesAsync();
+
+                    // 6. Supprimer l'utilisateur de la base métier
+                    var utilisateur = await _context.Utilisateurs.FindAsync(id);
+                    if (utilisateur != null)
+                    {
+                        _context.Utilisateurs.Remove(utilisateur);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    // 7. IMPORTANT: Supprimer l'utilisateur ASP.NET Identity
+                    var identityUser = await _userManager.FindByEmailAsync(email);
+                    if (identityUser != null)
+                    {
+                        await _userManager.DeleteAsync(identityUser);
+                    }
+
+                    await transaction.CommitAsync();
+                    TempData["Success"] = "Médecin et toutes ses données associées supprimés avec succès !";
                 }
             }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                TempData["Error"] = $"Erreur lors de la suppression : {ex.Message}";
+            }
 
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Médecin supprimé avec succès !";
             return RedirectToAction(nameof(Index));
         }
 

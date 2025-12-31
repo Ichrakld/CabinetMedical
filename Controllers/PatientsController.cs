@@ -26,7 +26,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // GET: Patients - MODIFIÉ avec filtres, recherche et statistiques
+        // GET: Patients - Avec filtres, recherche et statistiques
         // ============================================================
         public async Task<IActionResult> Index(
             string? searchTerm,
@@ -41,9 +41,7 @@ namespace GestionCabinetMedical.Controllers
                 .Include(p => p.DossierMedicals)
                 .AsQueryable();
 
-            // ===============================================
             // Filtrage par recherche textuelle
-            // ===============================================
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var term = searchTerm.ToLower();
@@ -56,18 +54,14 @@ namespace GestionCabinetMedical.Controllers
                 );
             }
 
-            // ===============================================
             // Filtrage par statut (basé sur EstActif)
-            // ===============================================
             if (!string.IsNullOrWhiteSpace(statut))
             {
                 bool estActif = statut.ToLower() == "actif";
                 query = query.Where(p => p.IdNavigation.EstActif == estActif);
             }
 
-            // ===============================================
             // Calcul des statistiques (avant pagination)
-            // ===============================================
             var allPatients = await _context.Patients
                 .Include(p => p.IdNavigation)
                 .Include(p => p.RendezVous)
@@ -84,20 +78,17 @@ namespace GestionCabinetMedical.Controllers
                     p.RendezVous.Any(r => r.DateHeure >= dateLimite30j))
             };
 
-            // ===============================================
             // Tri
-            // ===============================================
             query = sortBy?.ToLower() switch
             {
                 "rdv" => query.OrderByDescending(p =>
-                    p.RendezVous.OrderByDescending(r => r.DateHeure).FirstOrDefault().DateHeure),
+                    p.RendezVous.OrderByDescending(r => r.DateHeure).FirstOrDefault()!.DateHeure),
                 "nss" => query.OrderBy(p => p.NumSecuriteSociale),
+                "age" => query.OrderBy(p => p.DateNaissance),
                 _ => query.OrderBy(p => p.IdNavigation.Nom).ThenBy(p => p.IdNavigation.Prenom)
             };
 
-            // ===============================================
             // Pagination
-            // ===============================================
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
             page = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
@@ -113,6 +104,7 @@ namespace GestionCabinetMedical.Controllers
                     Email = p.IdNavigation.Email,
                     Telephone = p.IdNavigation.Telephone,
                     NumSecuriteSociale = p.NumSecuriteSociale,
+                    DateNaissance = p.DateNaissance,
                     EstActif = p.IdNavigation.EstActif,
                     DernierRdv = p.RendezVous
                         .OrderByDescending(r => r.DateHeure)
@@ -143,10 +135,8 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // Les autres actions restent INCHANGÉES
-        // ============================================================
-
         // GET: Patients/Details/5
+        // ============================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -208,7 +198,9 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
+        // ============================================================
         // GET: Patients/Create
+        // ============================================================
         public IActionResult Create()
         {
             var patient = new Patient
@@ -222,13 +214,16 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
-        // POST: Patients/Create
+        // ============================================================
+        // POST: Patients/Create - AVEC SYNC IDENTITY
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Patient patient)
         {
             if (ModelState.IsValid)
             {
+                // 1. Créer dans ASP.NET Identity
                 var identityUser = new Userper
                 {
                     UserName = patient.IdNavigation.Email,
@@ -244,6 +239,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     await _userManager.AddToRoleAsync(identityUser, "PATIENT");
 
+                    // 2. Créer dans la table métier
                     _context.Add(patient);
                     await _context.SaveChangesAsync();
 
@@ -262,7 +258,9 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
+        // ============================================================
         // GET: Patients/Edit/5
+        // ============================================================
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -282,7 +280,9 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
-        // POST: Patients/Edit/5
+        // ============================================================
+        // POST: Patients/Edit/5 - AVEC SYNC IDENTITY
+        // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Patient patient)
@@ -313,13 +313,16 @@ namespace GestionCabinetMedical.Controllers
 
                     var ancienEmail = patientExist.IdNavigation.Email;
 
+                    // Mettre à jour les données métier
                     patientExist.NumSecuriteSociale = patient.NumSecuriteSociale;
+                    patientExist.DateNaissance = patient.DateNaissance;
                     patientExist.IdNavigation.Nom = patient.IdNavigation.Nom;
                     patientExist.IdNavigation.Prenom = patient.IdNavigation.Prenom;
                     patientExist.IdNavigation.Email = patient.IdNavigation.Email;
                     patientExist.IdNavigation.Telephone = patient.IdNavigation.Telephone;
                     patientExist.IdNavigation.EstActif = patient.IdNavigation.EstActif;
 
+                    // Synchroniser avec ASP.NET Identity
                     var identityUser = await _userManager.FindByEmailAsync(ancienEmail);
                     if (identityUser != null)
                     {
@@ -352,7 +355,9 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
+        // ============================================================
         // GET: Patients/Delete/5
+        // ============================================================
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -363,6 +368,7 @@ namespace GestionCabinetMedical.Controllers
             var patient = await _context.Patients
                 .Include(p => p.IdNavigation)
                 .FirstOrDefaultAsync(m => m.Id == id);
+
             if (patient == null)
             {
                 return NotFound();
@@ -377,7 +383,9 @@ namespace GestionCabinetMedical.Controllers
             return View(patient);
         }
 
-        // POST: Patients/Delete/5
+        // ============================================================
+        // POST: Patients/Delete/5 - CORRIGÉ AVEC SUPPRESSION IDENTITY
+        // ============================================================
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
@@ -392,6 +400,47 @@ namespace GestionCabinetMedical.Controllers
 
                 if (patient != null)
                 {
+                    var email = patient.IdNavigation.Email;
+
+                    // 1. Supprimer les notifications liées aux RDV du patient
+                    var rdvIds = await _context.RendezVous
+                        .Where(r => r.PatientId == id)
+                        .Select(r => r.NumCom)
+                        .ToListAsync();
+
+                    if (rdvIds.Any())
+                    {
+                        var notifications = await _context.Notifications
+                            .Where(n => rdvIds.Contains(n.RendezVousId ?? 0))
+                            .ToListAsync();
+
+                        if (notifications.Any())
+                        {
+                            _context.Notifications.RemoveRange(notifications);
+                        }
+                    }
+
+                    // 2. Supprimer les notifications de l'utilisateur
+                    var userNotifications = await _context.Notifications
+                        .Where(n => n.UserId == id)
+                        .ToListAsync();
+
+                    if (userNotifications.Any())
+                    {
+                        _context.Notifications.RemoveRange(userNotifications);
+                    }
+
+                    // 3. Supprimer les RDV du patient
+                    var rendezVous = await _context.RendezVous
+                        .Where(r => r.PatientId == id)
+                        .ToListAsync();
+
+                    if (rendezVous.Any())
+                    {
+                        _context.RendezVous.RemoveRange(rendezVous);
+                    }
+
+                    // 4. Supprimer les traitements, consultations et dossiers
                     var dossierIds = await _context.DossierMedicals
                         .Where(d => d.PatientId == id)
                         .Select(d => d.NumDossier)
@@ -413,7 +462,6 @@ namespace GestionCabinetMedical.Controllers
                             if (traitements.Any())
                             {
                                 _context.Traitements.RemoveRange(traitements);
-                                await _context.SaveChangesAsync();
                             }
 
                             var consultations = await _context.Consultations
@@ -421,7 +469,6 @@ namespace GestionCabinetMedical.Controllers
                                 .ToListAsync();
 
                             _context.Consultations.RemoveRange(consultations);
-                            await _context.SaveChangesAsync();
                         }
 
                         var dossiers = await _context.DossierMedicals
@@ -429,40 +476,15 @@ namespace GestionCabinetMedical.Controllers
                             .ToListAsync();
 
                         _context.DossierMedicals.RemoveRange(dossiers);
-                        await _context.SaveChangesAsync();
                     }
 
-                    var rdvIds = await _context.RendezVous
-                        .Where(r => r.PatientId == id)
-                        .Select(r => r.NumCom)
-                        .ToListAsync();
+                    await _context.SaveChangesAsync();
 
-                    if (rdvIds.Any())
-                    {
-                        var notifications = await _context.Notifications
-                            .Where(n => rdvIds.Contains(n.RendezVousId ?? 0))
-                            .ToListAsync();
-
-                        if (notifications.Any())
-                        {
-                            _context.Notifications.RemoveRange(notifications);
-                            await _context.SaveChangesAsync();
-                        }
-                    }
-
-                    var rendezVous = await _context.RendezVous
-                        .Where(r => r.PatientId == id)
-                        .ToListAsync();
-
-                    if (rendezVous.Any())
-                    {
-                        _context.RendezVous.RemoveRange(rendezVous);
-                        await _context.SaveChangesAsync();
-                    }
-
+                    // 5. Supprimer le patient
                     _context.Patients.Remove(patient);
                     await _context.SaveChangesAsync();
 
+                    // 6. Supprimer l'utilisateur métier
                     var utilisateur = await _context.Utilisateurs.FindAsync(id);
                     if (utilisateur != null)
                     {
@@ -470,16 +492,16 @@ namespace GestionCabinetMedical.Controllers
                         await _context.SaveChangesAsync();
                     }
 
-                    var identityUser = await _userManager.FindByEmailAsync(patient.IdNavigation.Email);
+                    // 7. IMPORTANT: Supprimer l'utilisateur ASP.NET Identity
+                    var identityUser = await _userManager.FindByEmailAsync(email);
                     if (identityUser != null)
                     {
                         await _userManager.DeleteAsync(identityUser);
                     }
+
+                    await transaction.CommitAsync();
+                    TempData["Success"] = "Patient et toutes ses données associées supprimés avec succès !";
                 }
-
-                await transaction.CommitAsync();
-
-                TempData["Success"] = "Patient et toutes ses données associées supprimés avec succès !";
             }
             catch (Exception ex)
             {

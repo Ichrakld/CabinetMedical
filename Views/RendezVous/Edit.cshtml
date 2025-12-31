@@ -1,79 +1,110 @@
 ﻿@model GestionCabinetMedical.Models.RendezVou
 
 @{
-    ViewData["Title"] = "Modifier Rendez-vous";
-    Layout = "~/Views/Shared/_Layout.cshtml";
-    var minDateTime = DateTime.Now.AddMinutes(1).ToString("yyyy-MM-ddTHH:mm");
+    ViewData["Title"] = "Modifier le Rendez-vous";
 }
 
-<div class="container mt-4">
-    <div class="page-header mb-4">
-        <h1><i class="fas fa-edit text-warning"></i> Modifier le Rendez-vous</h1>
-    </div>
+<style>
+    .form-card {
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        background: white;
+    }
 
+    .form-header {
+        background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px 15px 0 0;
+    }
+
+    .conflict-warning {
+        display: none;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+        .conflict-warning.show {
+            display: block;
+        }
+</style>
+
+<div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0 text-secondary"><i class="fas fa-pen"></i> Informations du rendez-vous</h5>
+            <div class="form-card">
+                <div class="form-header">
+                    <h3 class="mb-0"><i class="fas fa-calendar-edit me-2"></i>Modifier le Rendez-vous #@Model.NumCom</h3>
                 </div>
-                <div class="card-body">
-                    <form asp-action="Edit" id="rdvEditForm">
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                <div class="card-body p-4">
+                    <form asp-action="Edit" id="rdvForm">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
                         <input type="hidden" asp-for="NumCom" />
 
-                        <div class="mb-3">
-                            <label asp-for="DateHeure" class="form-label fw-bold">
-                                <i class="fas fa-clock text-primary"></i> Date et Heure
-                            </label>
-                            <input asp-for="DateHeure" class="form-control" type="datetime-local"
-                                   id="dateHeureInput" min="@minDateTime" />
-                            <span asp-validation-for="DateHeure" class="text-danger"></span>
-                            <div id="dateError" class="text-danger small mt-1" style="display:none;">
-                                <i class="fas fa-exclamation-circle"></i> La date et l'heure doivent être supérieures à maintenant
+                        <div id="conflictWarning" class="conflict-warning">
+                            <h6><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Attention - Conflit détecté</h6>
+                            <p id="conflictMessage" class="mb-0"></p>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="DateHeure" class="form-label">
+                                    <i class="fas fa-calendar text-primary me-1"></i>Date et Heure <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="DateHeure" type="datetime-local" class="form-control form-control-lg" id="dateHeureInput" />
+                                <span asp-validation-for="DateHeure" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Statut" class="form-label">
+                                    <i class="fas fa-info-circle text-primary me-1"></i>Statut
+                                </label>
+                                <select asp-for="Statut" class="form-select form-select-lg">
+                                    <option value="En attente">En attente</option>
+                                    <option value="Confirmé">Confirmé</option>
+                                    <option value="Annulé">Annulé</option>
+                                    <option value="Terminé">Terminé</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label asp-for="PatientId" class="form-label fw-bold">
-                                <i class="fas fa-user-injured text-warning"></i> Patient
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="MedecinId" class="form-label">
+                                    <i class="fas fa-user-md text-primary me-1"></i>Médecin <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="MedecinId" class="form-select form-select-lg" asp-items="ViewBag.MedecinId" id="medecinSelect">
+                                    <option value="">-- Sélectionner --</option>
+                                </select>
+                                <span asp-validation-for="MedecinId" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="PatientId" class="form-label">
+                                    <i class="fas fa-user text-primary me-1"></i>Patient <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="PatientId" class="form-select form-select-lg" asp-items="ViewBag.PatientId" id="patientSelect">
+                                    <option value="">-- Sélectionner --</option>
+                                </select>
+                                <span asp-validation-for="PatientId" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Motif" class="form-label">
+                                <i class="fas fa-comment-medical text-primary me-1"></i>Motif
                             </label>
-                            <select asp-for="PatientId" class="form-select" asp-items="ViewBag.PatientId"></select>
-                            <span asp-validation-for="PatientId" class="text-danger"></span>
+                            <textarea asp-for="Motif" class="form-control" rows="3" placeholder="Motif de consultation..."></textarea>
                         </div>
 
-                        <div class="mb-3">
-                            <label asp-for="MedecinId" class="form-label fw-bold">
-                                <i class="fas fa-user-md text-success"></i> Médecin
-                            </label>
-                            <select asp-for="MedecinId" class="form-select" asp-items="ViewBag.MedecinId"></select>
-                            <span asp-validation-for="MedecinId" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Statut" class="form-label fw-bold">
-                                <i class="fas fa-info-circle text-secondary"></i> Statut
-                            </label>
-                            <select asp-for="Statut" class="form-select">
-                                <option value="En attente">En attente</option>
-                                <option value="Confirmé">Confirmé</option>
-                                <option value="Annulé">Annulé</option>
-                                <option value="Terminé">Terminé</option>
-                            </select>
-                            <span asp-validation-for="Statut" class="text-danger"></span>
-                        </div>
-
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> <strong>Note :</strong> Vous ne pouvez pas modifier un rendez-vous pour une date/heure dans le passé.
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <a asp-action="Index" class="btn btn-secondary me-md-2">
-                                <i class="fas fa-times"></i> Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Enregistrer les modifications
-                            </button>
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary btn-lg"><i class="fas fa-arrow-left me-1"></i>Annuler</a>
+                            <div>
+                                <a asp-action="Details" asp-route-id="@Model.NumCom" class="btn btn-info btn-lg me-2"><i class="fas fa-eye"></i> Voir</a>
+                                <button type="submit" class="btn btn-warning btn-lg" id="submitBtn"><i class="fas fa-save me-1"></i>Enregistrer</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -88,44 +119,30 @@
     }
     <script>
         $(document).ready(function() {
-            // Mettre à jour la date minimum
-            function updateMinDate() {
-                var now = new Date();
-                now.setMinutes(now.getMinutes() + 1);
-                var minDate = now.toISOString().slice(0, 16);
-                $('#dateHeureInput').attr('min', minDate);
+            var rdvId = @Model.NumCom;
+
+            function checkConflict() {
+                var medecinId = $('#medecinSelect').val();
+                var patientId = $('#patientSelect').val();
+                var dateHeure = $('#dateHeureInput').val();
+
+                if (medecinId && patientId && dateHeure) {
+                    $.post('@Url.Action("CheckConflict")', {
+                        medecinId: medecinId, patientId: patientId, dateHeure: dateHeure, excludeId: rdvId
+                    }, function(response) {
+                        if (response.hasConflict) {
+                            $('#conflictMessage').text(response.message);
+                            $('#conflictWarning').addClass('show');
+                            $('#submitBtn').prop('disabled', true).addClass('btn-secondary').removeClass('btn-warning');
+                        } else {
+                            $('#conflictWarning').removeClass('show');
+                            $('#submitBtn').prop('disabled', false).addClass('btn-warning').removeClass('btn-secondary');
+                        }
+                    });
+                }
             }
 
-            updateMinDate();
-            setInterval(updateMinDate, 30000);
-
-            // Validation côté client
-            $('#dateHeureInput').on('change', function() {
-                var selectedDate = new Date($(this).val());
-                var now = new Date();
-
-                if (selectedDate <= now) {
-                    $('#dateError').show();
-                    $(this).addClass('is-invalid');
-                } else {
-                    $('#dateError').hide();
-                    $(this).removeClass('is-invalid');
-                }
-            });
-
-            // Validation avant soumission
-            $('#rdvEditForm').on('submit', function(e) {
-                var selectedDate = new Date($('#dateHeureInput').val());
-                var now = new Date();
-
-                if (selectedDate <= now) {
-                    e.preventDefault();
-                    $('#dateError').show();
-                    $('#dateHeureInput').addClass('is-invalid');
-                    alert('Erreur : La date et l\'heure du rendez-vous doivent être supérieures à maintenant.');
-                    return false;
-                }
-            });
+            $('#medecinSelect, #patientSelect, #dateHeureInput').on('change', checkConflict);
         });
     </script>
 }

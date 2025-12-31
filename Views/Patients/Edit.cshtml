@@ -2,7 +2,6 @@
 
 @{
     ViewData["Title"] = "Modifier Patient";
-    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <style>
@@ -39,7 +38,7 @@
             <div class="detail-card">
                 <div class="detail-header">
                     <h2><i class="fas fa-user-edit"></i> Modifier le Patient</h2>
-                    <p class="mb-0">Mise à jour du dossier administratif</p>
+                    <p class="mb-0">Mise à jour des informations de @Model.IdNavigation?.Nom @Model.IdNavigation?.Prenom</p>
                 </div>
 
                 <div class="card-body p-4">
@@ -48,6 +47,8 @@
 
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="IdNavigation.Id" />
+
+                        <h5 class="text-primary mb-3"><i class="fas fa-user"></i> Informations Personnelles</h5>
 
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -64,39 +65,68 @@
 
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label asp-for="IdNavigation.Email" class="form-label"><i class="fas fa-envelope me-2 text-primary"></i>Email</label>
+                                <label asp-for="DateNaissance" class="form-label">
+                                    <i class="fas fa-birthday-cake text-primary me-2"></i>Date de Naissance
+                                </label>
+                                <input asp-for="DateNaissance" type="date" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                                <span asp-validation-for="DateNaissance" class="text-danger"></span>
+                                @if (Model.Age.HasValue)
+                                {
+                                    <small class="text-muted">Âge actuel : <strong>@Model.Age ans</strong></small>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="NumSecuriteSociale" class="form-label">
+                                    <i class="fas fa-id-card text-primary me-2"></i>N° Sécurité Sociale
+                                </label>
+                                <input asp-for="NumSecuriteSociale" class="form-control form-control-lg" placeholder="Ex: 1 85 05 78..." />
+                                <span asp-validation-for="NumSecuriteSociale" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+                        <h5 class="text-primary mb-3"><i class="fas fa-address-card"></i> Coordonnées</h5>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="IdNavigation.Email" class="form-label">
+                                    <i class="fas fa-envelope text-primary me-2"></i>Email
+                                </label>
                                 <input asp-for="IdNavigation.Email" class="form-control" />
                                 <span asp-validation-for="IdNavigation.Email" class="text-danger"></span>
                             </div>
                             <div class="col-md-6">
-                                <label asp-for="IdNavigation.Telephone" class="form-label"><i class="fas fa-phone me-2 text-primary"></i>Téléphone</label>
+                                <label asp-for="IdNavigation.Telephone" class="form-label">
+                                    <i class="fas fa-phone text-primary me-2"></i>Téléphone
+                                </label>
                                 <input asp-for="IdNavigation.Telephone" class="form-control" />
                                 <span asp-validation-for="IdNavigation.Telephone" class="text-danger"></span>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label asp-for="NumSecuriteSociale" class="form-label">
-                                <i class="fas fa-id-card text-primary me-2"></i>Numéro Sécurité Sociale
-                            </label>
-                            <input asp-for="NumSecuriteSociale" class="form-control form-control-lg" placeholder="Ex: 1 85 05 78..." />
-                            <span asp-validation-for="NumSecuriteSociale" class="text-danger"></span>
-                        </div>
+                        <hr class="my-4" />
+                        <h5 class="text-primary mb-3"><i class="fas fa-cog"></i> Paramètres du Compte</h5>
 
                         <div class="form-check mb-4">
                             <input asp-for="IdNavigation.EstActif" class="form-check-input" type="checkbox" />
-                            <label asp-for="IdNavigation.EstActif" class="form-check-label">Patient Actif</label>
+                            <label asp-for="IdNavigation.EstActif" class="form-check-label">
+                                <i class="fas fa-user-check text-success me-1"></i> Patient Actif
+                            </label>
+                            <small class="d-block text-muted">Décocher pour désactiver le compte du patient</small>
                         </div>
 
-                        <hr class="my-4">
-
-                        <div class="d-flex justify-content-end gap-2">
+                        <div class="d-flex justify-content-between gap-2">
                             <a asp-action="Index" class="btn btn-secondary btn-custom">
                                 <i class="fas fa-times"></i> Annuler
                             </a>
-                            <button type="submit" class="btn btn-primary btn-custom">
-                                <i class="fas fa-save"></i> Enregistrer
-                            </button>
+                            <div>
+                                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-custom me-2">
+                                    <i class="fas fa-eye"></i> Voir Détails
+                                </a>
+                                <button type="submit" class="btn btn-primary btn-custom">
+                                    <i class="fas fa-save"></i> Enregistrer
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

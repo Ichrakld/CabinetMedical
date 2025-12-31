@@ -13,18 +13,20 @@
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
+            <h5 class="text-primary mb-3"><i class="fas fa-user"></i> Informations Personnelles</h5>
+
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-user"></i> Nom</label>
-                        <input asp-for="IdNavigation.Nom" class="form-control" />
+                        <label class="form-label"><i class="fas fa-user"></i> Nom <span class="text-danger">*</span></label>
+                        <input asp-for="IdNavigation.Nom" class="form-control" placeholder="Entrez le nom" />
                         <span asp-validation-for="IdNavigation.Nom" class="text-danger"></span>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-user"></i> Prénom</label>
-                        <input asp-for="IdNavigation.Prenom" class="form-control" />
+                        <label class="form-label"><i class="fas fa-user"></i> Prénom <span class="text-danger">*</span></label>
+                        <input asp-for="IdNavigation.Prenom" class="form-control" placeholder="Entrez le prénom" />
                         <span asp-validation-for="IdNavigation.Prenom" class="text-danger"></span>
                     </div>
                 </div>
@@ -33,51 +35,73 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-envelope"></i> Email</label>
-                        <input asp-for="IdNavigation.Email" type="email" class="form-control" />
+                        <label class="form-label"><i class="fas fa-birthday-cake"></i> Date de Naissance</label>
+                        <input asp-for="DateNaissance" type="date" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <span asp-validation-for="DateNaissance" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-id-card"></i> N° Sécurité Sociale <span class="text-danger">*</span></label>
+                        <input asp-for="NumSecuriteSociale" class="form-control" placeholder="Ex: 1 85 05 78..." />
+                        <span asp-validation-for="NumSecuriteSociale" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-4" />
+            <h5 class="text-primary mb-3"><i class="fas fa-address-card"></i> Coordonnées</h5>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-envelope"></i> Email <span class="text-danger">*</span></label>
+                        <input asp-for="IdNavigation.Email" type="email" class="form-control" placeholder="exemple@email.com" />
                         <span asp-validation-for="IdNavigation.Email" class="text-danger"></span>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label class="form-label"><i class="fas fa-phone"></i> Téléphone</label>
-                        <input asp-for="IdNavigation.Telephone" class="form-control" />
+                        <input asp-for="IdNavigation.Telephone" class="form-control" placeholder="06 XX XX XX XX" />
                         <span asp-validation-for="IdNavigation.Telephone" class="text-danger"></span>
                     </div>
                 </div>
             </div>
 
+            <hr class="my-4" />
+            <h5 class="text-primary mb-3"><i class="fas fa-lock"></i> Compte Utilisateur</h5>
+
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-id-card"></i> N° Sécurité Sociale</label>
-                        <input asp-for="NumSecuriteSociale" class="form-control" />
-                        <span asp-validation-for="NumSecuriteSociale" class="text-danger"></span>
+                        <label class="form-label"><i class="fas fa-lock"></i> Mot de passe <span class="text-danger">*</span></label>
+                        <input asp-for="IdNavigation.MotDePasse" type="password" class="form-control" />
+                        <span asp-validation-for="IdNavigation.MotDePasse" class="text-danger"></span>
+                        <small class="text-muted">
+                            Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.
+                        </small>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label"><i class="fas fa-lock"></i> Mot de passe</label>
-                        <input asp-for="IdNavigation.MotDePasse" type="password" class="form-control" />
-                        <span asp-validation-for="IdNavigation.MotDePasse" class="text-danger"></span>
+                    <div class="mb-3 pt-4">
+                        <div class="form-check">
+                            <input asp-for="IdNavigation.EstActif" class="form-check-input" type="checkbox" checked />
+                            <label asp-for="IdNavigation.EstActif" class="form-check-label">
+                                <i class="fas fa-user-check text-success"></i> Patient actif
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <div class="form-check">
-                    <input asp-for="IdNavigation.EstActif" class="form-check-input" />
-                    <label asp-for="IdNavigation.EstActif" class="form-check-label">Patient actif</label>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-save"></i> Enregistrer
-                </button>
+            <div class="mt-4 d-flex justify-content-between">
                 <a asp-action="Index" class="btn btn-secondary">
                     <i class="fas fa-times"></i> Annuler
                 </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Enregistrer le Patient
+                </button>
             </div>
         </form>
     </div>

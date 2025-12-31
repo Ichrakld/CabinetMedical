@@ -4,7 +4,6 @@ namespace GestionCabinetMedical.ViewModels
 {
     /// <summary>
     /// ViewModel for Patient Index with filtering, sorting, and statistics
-    /// Adapted to actual Patient model (without DateNaissance, Statut, GroupeSanguin)
     /// </summary>
     public class PatientIndexViewModel
     {
@@ -13,13 +12,13 @@ namespace GestionCabinetMedical.ViewModels
 
         // Statistics
         public int TotalPatients { get; set; }
-        public int PatientsActifs { get; set; }         // Based on Utilisateur.EstActif
-        public int PatientsInactifs { get; set; }       // Based on Utilisateur.EstActif
-        public int PatientsAvecRdvRecent { get; set; }  // Patients with RDV in last 30 days
+        public int PatientsActifs { get; set; }
+        public int PatientsInactifs { get; set; }
+        public int PatientsAvecRdvRecent { get; set; }
 
         // Filters
         public string? SearchTerm { get; set; }
-        public string? Statut { get; set; }             // "actif" or "inactif" based on EstActif
+        public string? Statut { get; set; }
         public string? SortBy { get; set; } = "nom";
 
         // Pagination
@@ -39,6 +38,7 @@ namespace GestionCabinetMedical.ViewModels
         public string? Email { get; set; }
         public string? Telephone { get; set; }
         public string? NumSecuriteSociale { get; set; }
+        public DateTime? DateNaissance { get; set; }
         public bool EstActif { get; set; }
         public DateTime? DernierRdv { get; set; }
         public int NombreRdv { get; set; }
@@ -49,6 +49,18 @@ namespace GestionCabinetMedical.ViewModels
 
         // Computed properties
         public string Initials => GetInitials();
+
+        public int? Age
+        {
+            get
+            {
+                if (!DateNaissance.HasValue) return null;
+                var today = DateTime.Today;
+                var age = today.Year - DateNaissance.Value.Year;
+                if (DateNaissance.Value.Date > today.AddYears(-age)) age--;
+                return age;
+            }
+        }
 
         private string GetInitials()
         {

@@ -118,6 +118,7 @@
                             <option value="nom" selected="@(Model.SortBy == "nom" ? "selected" : null)">Nom</option>
                             <option value="rdv" selected="@(Model.SortBy == "rdv" ? "selected" : null)">Dernier RDV</option>
                             <option value="nss" selected="@(Model.SortBy == "nss" ? "selected" : null)">N° Sécurité Sociale</option>
+                            <option value="age" selected="@(Model.SortBy == "age" ? "selected" : null)">Âge</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -150,7 +151,8 @@
                         <th style="width: 60px;"></th>
                         <th>Patient</th>
                         <th>Contact</th>
-                        <th>N° Sécurité Sociale</th>
+                        <th>N° SS</th>
+                        <th>Âge</th>
                         <th>Statut</th>
                         <th>RDV / Dossiers</th>
                         <th>Dernier RDV</th>
@@ -161,7 +163,7 @@
                     @if (!Model.Patients.Any())
                     {
                         <tr>
-                            <td colspan="8" class="text-center py-5">
+                            <td colspan="9" class="text-center py-5">
                                 <i class="fas fa-search fa-3x text-muted mb-3"></i>
                                 <h5 class="text-muted">Aucun patient trouvé</h5>
                                 <p class="text-muted mb-0">Essayez de modifier vos critères de recherche</p>
@@ -189,9 +191,7 @@
                                             <span class="badge bg-secondary ms-1">Inactif</span>
                                         }
                                     </div>
-                                    <small class="text-muted">
-                                        ID: #@patient.Id
-                                    </small>
+                                    <small class="text-muted">ID: #@patient.Id</small>
                                 </td>
                                 <td>
                                     <div>
@@ -207,6 +207,18 @@
                                     @if (!string.IsNullOrEmpty(patient.NumSecuriteSociale))
                                     {
                                         <code>@patient.NumSecuriteSociale</code>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (patient.Age.HasValue)
+                                    {
+                                        <span class="badge bg-info">@patient.Age ans</span>
+                                        <br />
+                                        <small class="text-muted">@patient.DateNaissance?.ToString("dd/MM/yyyy")</small>
                                     }
                                     else
                                     {
@@ -348,12 +360,10 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
-            // Auto-submit sur changement de filtre
             $('select[name="statut"], select[name="sortBy"]').change(function() {
                 $('#filterForm').submit();
             });
 
-            // Toggle status (activer/désactiver)
             $('.btn-toggle-status').click(function() {
                 var btn = $(this);
                 var id = btn.data('id');
@@ -363,7 +373,6 @@
                 if (confirm('Voulez-vous vraiment ' + action + ' ce patient ?')) {
                     $.post('/Patients/ToggleStatus/' + id, function(response) {
                         if (response.success) {
-                            // Recharger la page pour refléter les changements
                             location.reload();
                         } else {
                             alert('Erreur lors de la modification du statut');
