@@ -1,0 +1,233 @@
+﻿@model GestionCabinetMedical.Models.RendezVou
+@{
+    ViewData["Title"] = "Modifier mon Rendez-vous";
+    var currentTime = Model.DateHeure.ToString("HH:mm");
+}
+
+<style>
+    .modify-card {
+        max-width: 600px;
+        margin: 0 auto;
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .modify-header {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white;
+        padding: 25px;
+    }
+
+    .current-info {
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+    .modify-body {
+        padding: 30px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+    }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #11998e;
+            box-shadow: 0 0 0 3px rgba(17,153,142,0.1);
+        }
+
+    .medecin-display {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+
+    .medecin-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 15px;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        border: none;
+        padding: 12px 30px;
+        border-radius: 10px;
+    }
+</style>
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="MesRendezVous">Mes RDV</a></li>
+            <li class="breadcrumb-item active">Modifier RDV #@Model.NumCom</li>
+        </ol>
+    </nav>
+
+    <div class="modify-card">
+        <div class="modify-header">
+            <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Modifier mon Rendez-vous</h4>
+            <div class="current-info">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="opacity-75">Date actuelle</small>
+                        <div class="fw-bold">@Model.DateHeure.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                    <div class="col-6">
+                        <small class="opacity-75">Statut</small>
+                        <div class="fw-bold">@Model.Statut</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modify-body">
+            <form asp-action="ModifierMonRdv" method="post">
+                <input type="hidden" asp-for="NumCom" />
+                <input type="hidden" asp-for="PatientId" />
+                <input type="hidden" asp-for="MedecinId" />
+                <input type="hidden" asp-for="Statut" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <!-- Médecin (lecture seule) -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-user-md text-primary me-1"></i>Médecin
+                    </label>
+                    <div class="medecin-display">
+                        <div class="medecin-avatar">
+                            @(Model.Medecin?.IdNavigation?.Nom?.Substring(0, 1) ?? "M")
+                        </div>
+                        <div>
+                            <strong>Dr. @Model.Medecin?.IdNavigation?.Nom @Model.Medecin?.IdNavigation?.Prenom</strong>
+                            <br><small class="text-muted">@Model.Medecin?.Specialite</small>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Pour changer de médecin, annulez ce RDV et créez-en un nouveau.
+                    </small>
+                </div>
+
+                <!-- Nouvelle date et heure -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-calendar text-success me-1"></i>Nouvelle date
+                        </label>
+                        <input type="date" class="form-control" id="newDate"
+                               value="@Model.DateHeure.ToString("yyyy-MM-dd")"
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-clock text-success me-1"></i>Nouvelle heure
+                        </label>
+                        <select class="form-select" id="newTime" required>
+                            <option value="08:00">08:00</option>
+                            <option value="08:30">08:30</option>
+                            <option value="09:00">09:00</option>
+                            <option value="09:30">09:30</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:30">10:30</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:30">11:30</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:30">14:30</option>
+                            <option value="15:00">15:00</option>
+                            <option value="15:30">15:30</option>
+                            <option value="16:00">16:00</option>
+                            <option value="16:30">16:30</option>
+                            <option value="17:00">17:00</option>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                        </select>
+                    </div>
+                </div>
+                <input type="hidden" asp-for="DateHeure" id="dateHeureHidden" />
+
+                <!-- Motif -->
+                <div class="mb-4">
+                    <label asp-for="Motif" class="form-label fw-bold">
+                        <i class="fas fa-comment-medical text-info me-1"></i>Motif
+                    </label>
+                    <textarea asp-for="Motif" class="form-control" rows="3"></textarea>
+                </div>
+
+                <!-- Info -->
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    La modification sera prise en compte immédiatement.
+                </div>
+
+                <!-- Boutons -->
+                <div class="d-flex justify-content-between">
+                    <a asp-action="MesRendezVous" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-success btn-save">
+                        <i class="fas fa-save me-2"></i>Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Sélectionner l'heure actuelle au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            var currentTime = '@currentTime';
+            var selectTime = document.getElementById('newTime');
+            for (var i = 0; i < selectTime.options.length; i++) {
+                if (selectTime.options[i].value === currentTime) {
+                    selectTime.selectedIndex = i;
+                    break;
+                }
+            }
+        });
+
+        function updateDateTime() {
+            var date = document.getElementById('newDate').value;
+            var time = document.getElementById('newTime').value;
+            if (date && time) {
+                document.getElementById('dateHeureHidden').value = date + 'T' + time + ':00';
+            }
+        }
+
+        document.getElementById('newDate').addEventListener('change', updateDateTime);
+        document.getElementById('newTime').addEventListener('change', updateDateTime);
+        updateDateTime();
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            updateDateTime();
+            var dt = new Date(document.getElementById('dateHeureHidden').value);
+            if (dt <= new Date()) {
+                e.preventDefault();
+                alert('La date doit être dans le futur.');
+            }
+        });
+    </script>
+}

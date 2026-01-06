@@ -1,0 +1,244 @@
+﻿@model GestionCabinetMedical.Models.RendezVou
+@{
+    ViewData["Title"] = "Demander un Rendez-vous";
+}
+
+<style>
+    .request-card {
+        max-width: 700px;
+        margin: 0 auto;
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .request-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+
+        .request-header i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+    .request-body {
+        padding: 30px;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+    }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+    .medecin-option {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .medecin-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .medecin-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+        }
+
+        .medecin-option input {
+            display: none;
+        }
+
+    .medecin-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+        margin-right: 15px;
+    }
+
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        padding: 15px 40px;
+        font-size: 1.1rem;
+        border-radius: 10px;
+    }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+        }
+</style>
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="MesRendezVous">Mes RDV</a></li>
+            <li class="breadcrumb-item active">Nouvelle demande</li>
+        </ol>
+    </nav>
+
+    <div class="request-card">
+        <div class="request-header">
+            <i class="fas fa-calendar-plus"></i>
+            <h2 class="mb-2">Demander un Rendez-vous</h2>
+            <p class="mb-0 opacity-75">Remplissez le formulaire ci-dessous</p>
+        </div>
+
+        <div class="request-body">
+            <form asp-action="DemanderRendezVous" method="post" id="rdvForm">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                <!-- Médecin -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-user-md text-primary me-1"></i>Choisir un médecin *
+                    </label>
+                    <div id="medecinsList">
+                        @if (ViewBag.Medecins != null)
+                        {
+                            foreach (var m in (IEnumerable<dynamic>)ViewBag.Medecins)
+                            {
+                                <label class="medecin-option">
+                                    <input type="radio" name="MedecinId" value="@m.Id" required />
+                                    <div class="medecin-avatar">@(((string)m.Nom)?.Substring(0, 1))</div>
+                                    <div>
+                                        <strong>Dr. @m.Nom @m.Prenom</strong>
+                                        <br><small class="text-muted">@m.Specialite</small>
+                                    </div>
+                                </label>
+                            }
+                        }
+                    </div>
+                    <span asp-validation-for="MedecinId" class="text-danger"></span>
+                </div>
+
+                <!-- Date et Heure -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-calendar text-success me-1"></i>Date *
+                        </label>
+                        <input type="date" class="form-control" id="dateRdv"
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                               max="@DateTime.Today.AddMonths(3).ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-clock text-success me-1"></i>Heure *
+                        </label>
+                        <select class="form-select" id="heureRdv" required>
+                            <option value="">Sélectionnez</option>
+                            @for (int h = 8; h <= 18; h++)
+                            {
+                                <option value="@h:00">@h.ToString("00"):00</option>
+                                if (h < 18)
+                                {
+                                    <option value="@h:30">@h.ToString("00"):30</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <input type="hidden" asp-for="DateHeure" id="dateHeureInput" />
+
+                <!-- Motif -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-comment-medical text-info me-1"></i>Motif de consultation
+                    </label>
+                    <select class="form-select mb-2" id="typeMotif">
+                        <option value="">Type de consultation...</option>
+                        <option value="Consultation générale">Consultation générale</option>
+                        <option value="Suivi médical">Suivi médical</option>
+                        <option value="Renouvellement ordonnance">Renouvellement ordonnance</option>
+                        <option value="Certificat médical">Certificat médical</option>
+                        <option value="Vaccination">Vaccination</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                    <textarea asp-for="Motif" class="form-control" rows="3"
+                              placeholder="Décrivez brièvement la raison de votre visite..."></textarea>
+                </div>
+
+                <!-- Info -->
+                <div class="alert alert-warning mb-4">
+                    <h6><i class="fas fa-info-circle me-2"></i>Information</h6>
+                    <ul class="mb-0 small">
+                        <li>Votre demande sera examinée par le secrétariat</li>
+                        <li>Vous recevrez une confirmation</li>
+                        <li>En cas d'urgence, appelez le <strong>15 (SAMU)</strong></li>
+                    </ul>
+                </div>
+
+                <!-- Boutons -->
+                <div class="d-flex justify-content-between">
+                    <a asp-action="MesRendezVous" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Retour
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-submit">
+                        <i class="fas fa-paper-plane me-2"></i>Envoyer la demande
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Sélection médecin
+        document.querySelectorAll('.medecin-option input').forEach(function(input) {
+            input.addEventListener('change', function() {
+                document.querySelectorAll('.medecin-option').forEach(o => o.classList.remove('selected'));
+                this.closest('.medecin-option').classList.add('selected');
+            });
+        });
+
+        // Type de motif
+        document.getElementById('typeMotif').addEventListener('change', function() {
+            var motifField = document.getElementById('Motif');
+            if (this.value && this.value !== 'Autre') {
+                motifField.value = this.value + ' - ';
+                motifField.focus();
+            }
+        });
+
+        // Combiner date et heure
+        document.getElementById('rdvForm').addEventListener('submit', function(e) {
+            var date = document.getElementById('dateRdv').value;
+            var heure = document.getElementById('heureRdv').value;
+
+            if (!date || !heure) {
+                e.preventDefault();
+                alert('Veuillez sélectionner une date et une heure.');
+                return;
+            }
+
+            document.getElementById('dateHeureInput').value = date + 'T' + heure + ':00';
+        });
+    </script>
+}

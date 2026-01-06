@@ -1,0 +1,413 @@
+﻿@{
+    ViewData["Title"] = "Mes Rendez-vous";
+}
+
+<style>
+    .rdv-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+        .rdv-card:hover {
+            transform: translateY(-3px);
+        }
+
+    .rdv-header {
+        padding: 15px 20px;
+        color: white;
+    }
+
+        .rdv-header.en-attente {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+        }
+
+        .rdv-header.confirme {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .rdv-header.annule {
+            background: linear-gradient(135deg, #eb3349, #f45c43);
+        }
+
+        .rdv-header.termine {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+        }
+
+    .rdv-body {
+        padding: 20px;
+    }
+
+    .rdv-info {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .rdv-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+    }
+
+    .rdv-actions {
+        display: flex;
+        gap: 10px;
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #eee;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .stat-card p {
+            margin: 5px 0 0;
+            color: #666;
+        }
+
+    .filter-btn {
+        padding: 8px 20px;
+        border-radius: 25px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        color: #666;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: transparent;
+            color: white;
+        }
+
+    .badge-today {
+        position: absolute;
+        top: -8px;
+        right: 15px;
+        background: #28a745;
+        color: white;
+        padding: 3px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-calendar-check text-primary me-2"></i>Mes Rendez-vous
+            </h2>
+            <p class="text-muted">Gérez vos rendez-vous médicaux</p>
+        </div>
+        <a asp-action="DemanderRendezVous" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Demander un RDV
+        </a>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <h3 class="text-primary">@(ViewBag.TotalRdv ?? 0)</h3>
+                <p>Total RDV</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <h3 class="text-warning">@(ViewBag.EnAttente ?? 0)</h3>
+                <p>En attente</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <h3 class="text-success">@(ViewBag.Confirmes ?? 0)</h3>
+                <p>Confirmés</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="stat-card">
+                <h3 class="text-info">@(ViewBag.Termines ?? 0)</h3>
+                <p>Terminés</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prochain RDV Alert -->
+    @if (ViewBag.ProchainRdv != null)
+    {
+        var prochain = (dynamic)ViewBag.ProchainRdv;
+        <div class="alert alert-info d-flex align-items-center mb-4">
+            <i class="fas fa-bell fa-2x me-3"></i>
+            <div>
+                <strong>Prochain rendez-vous :</strong>
+                @(((DateTime)prochain.DateHeure).ToString("dddd dd MMMM yyyy à HH:mm"))
+                avec <strong>Dr. @prochain.Medecin?.IdNavigation?.Nom</strong>
+            </div>
+        </div>
+    }
+
+    <!-- Filtres -->
+    <div class="d-flex gap-2 mb-4 flex-wrap">
+        <a href="@Url.Action("MesRendezVous", new { filtre = "tous" })"
+           class="filter-btn @(ViewBag.Filtre == "tous" || ViewBag.Filtre == null ? "active" : "")">
+            <i class="fas fa-list me-1"></i>Tous
+        </a>
+        <a href="@Url.Action("MesRendezVous", new { filtre = "avenir" })"
+           class="filter-btn @(ViewBag.Filtre == "avenir" ? "active" : "")">
+            <i class="fas fa-clock me-1"></i>À venir
+        </a>
+        <a href="@Url.Action("MesRendezVous", new { filtre = "attente" })"
+           class="filter-btn @(ViewBag.Filtre == "attente" ? "active" : "")">
+            <i class="fas fa-hourglass-half me-1"></i>En attente
+        </a>
+        <a href="@Url.Action("MesRendezVous", new { filtre = "confirme" })"
+           class="filter-btn @(ViewBag.Filtre == "confirme" ? "active" : "")">
+            <i class="fas fa-check me-1"></i>Confirmés
+        </a>
+        <a href="@Url.Action("MesRendezVous", new { filtre = "passe" })"
+           class="filter-btn @(ViewBag.Filtre == "passe" ? "active" : "")">
+            <i class="fas fa-history me-1"></i>Passés
+        </a>
+    </div>
+
+    <!-- Liste des RDV -->
+    @if (ViewBag.MesRdv != null && ((IEnumerable<dynamic>)ViewBag.MesRdv).Any())
+    {
+        <div class="row">
+            @foreach (var rdv in (IEnumerable<dynamic>)ViewBag.MesRdv)
+            {
+                var statut = (string)(rdv.Statut ?? "En attente");
+                var statutClass = statut.ToLower().Replace(" ", "-").Replace("é", "e");
+                var dateRdv = (DateTime)rdv.DateHeure;
+                var isPast = dateRdv < DateTime.Now;
+                var isToday = dateRdv.Date == DateTime.Today;
+                var canModify = !isPast && statut != "Annulé" && statut != "Terminé";
+                var canConfirm = statut == "En attente" && !isPast;
+                var canCancel = !isPast && statut != "Annulé" && statut != "Terminé";
+
+                <div class="col-lg-6 col-xl-4">
+                    <div class="rdv-card position-relative">
+                        @if (isToday)
+                        {
+                            <span class="badge-today">Aujourd'hui</span>
+                        }
+
+                        <div class="rdv-header @statutClass">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-calendar-day me-2"></i>
+                                    <strong>@dateRdv.ToString("dd MMM yyyy")</strong>
+                                    <br>
+                                    <small>@dateRdv.ToString("HH:mm")</small>
+                                </div>
+                                <span class="badge bg-light text-dark">@statut</span>
+                            </div>
+                        </div>
+
+                        <div class="rdv-body">
+                            <div class="rdv-info">
+                                <div class="rdv-icon bg-primary bg-opacity-10 text-primary">
+                                    <i class="fas fa-user-md"></i>
+                                </div>
+                                <div>
+                                    <strong>Dr. @rdv.Medecin?.IdNavigation?.Nom @rdv.Medecin?.IdNavigation?.Prenom</strong>
+                                    <br>
+                                    <small class="text-muted">@rdv.Medecin?.Specialite</small>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty((string)rdv.Motif))
+                            {
+                                <div class="rdv-info">
+                                    <div class="rdv-icon bg-info bg-opacity-10 text-info">
+                                        <i class="fas fa-comment-medical"></i>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">Motif</small>
+                                        <br>
+                                        <span>@rdv.Motif</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="rdv-actions">
+                            @if (canConfirm)
+                            {
+                                <button class="btn btn-success btn-sm" onclick="confirmerRdv(@rdv.NumCom)">
+                                    <i class="fas fa-check me-1"></i>Confirmer
+                                </button>
+                            }
+
+                            @if (canModify)
+                            {
+                                <a asp-action="ModifierMonRdv" asp-route-id="@rdv.NumCom" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Modifier
+                                </a>
+                            }
+
+                            @if (canCancel)
+                            {
+                                <button class="btn btn-outline-danger btn-sm" onclick="annulerRdv(@rdv.NumCom)">
+                                    <i class="fas fa-times me-1"></i>Annuler
+                                </button>
+                            }
+
+                            <a asp-action="Details" asp-route-id="@rdv.NumCom" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-eye me-1"></i>Détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-calendar-times fa-5x text-muted mb-4"></i>
+            <h4>Aucun rendez-vous trouvé</h4>
+            <p class="text-muted">Vous n'avez pas encore de rendez-vous.</p>
+            <a asp-action="DemanderRendezVous" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Demander un rendez-vous
+            </a>
+        </div>
+    }
+</div>
+
+<!-- Modal Confirmation -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Confirmer le RDV</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Confirmez-vous votre présence à ce rendez-vous ?</p>
+                <small class="text-muted">En confirmant, vous vous engagez à être présent.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" id="btnConfirmOk">
+                    <i class="fas fa-check me-1"></i>Confirmer ma présence
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Annulation -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-times-circle me-2"></i>Annuler le RDV</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir annuler ce rendez-vous ?</p>
+                <div class="mb-3">
+                    <label class="form-label">Motif d'annulation (optionnel)</label>
+                    <textarea class="form-control" id="motifAnnulation" rows="3" placeholder="Raison de l'annulation..."></textarea>
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Cette action est irréversible.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Retour</button>
+                <button type="button" class="btn btn-danger" id="btnCancelOk">
+                    <i class="fas fa-times me-1"></i>Annuler le RDV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var currentRdvId = null;
+        var confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        var cancelModal = new bootstrap.Modal(document.getElementById('cancelModal'));
+
+        function confirmerRdv(id) {
+            currentRdvId = id;
+            confirmModal.show();
+        }
+
+        function annulerRdv(id) {
+            currentRdvId = id;
+            document.getElementById('motifAnnulation').value = '';
+            cancelModal.show();
+        }
+
+        document.getElementById('btnConfirmOk').addEventListener('click', function() {
+            fetch('/RendezVous/ConfirmerMonRdv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'id=' + currentRdvId
+            })
+            .then(response => response.json())
+            .then(data => {
+                confirmModal.hide();
+                if (data.success) {
+                    showToast('Succès', data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('Erreur', data.message, 'danger');
+                }
+            });
+        });
+
+        document.getElementById('btnCancelOk').addEventListener('click', function() {
+            var motif = document.getElementById('motifAnnulation').value;
+            fetch('/RendezVous/AnnulerMonRdv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'id=' + currentRdvId + '&motif=' + encodeURIComponent(motif)
+            })
+            .then(response => response.json())
+            .then(data => {
+                cancelModal.hide();
+                if (data.success) {
+                    showToast('Succès', data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('Erreur', data.message, 'danger');
+                }
+            });
+        });
+
+        function showToast(title, message, type) {
+            var html = '<div class="position-fixed top-0 end-0 p-3" style="z-index:9999">' +
+                '<div class="toast show bg-' + type + ' text-white">' +
+                '<div class="toast-body"><strong>' + title + ':</strong> ' + message + '</div>' +
+                '</div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+            setTimeout(() => document.querySelector('.toast').parentElement.remove(), 3000);
+        }
+    </script>
+}

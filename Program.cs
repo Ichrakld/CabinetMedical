@@ -20,7 +20,8 @@ builder.Services.AddDbContext<CabinetMedicalIdentityContext>(options =>
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICrudNotificationHelper, CrudNotificationHelper>();
-
+// Services
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddIdentity<Userper, IdentityRole>(options => {
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = true;

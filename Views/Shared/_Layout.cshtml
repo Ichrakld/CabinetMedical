@@ -4,11 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Cabinet Médical</title>
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     @RenderSection("Styles", required: false)
-
+    @await Html.PartialAsync("_ChatbotPartial")
     <style>
         :root {
             --primary-color: #0d6efd;
@@ -153,6 +154,14 @@
                                         </a>
                                     </li>
                                 </ul>
+                            </li>
+                        }
+                        @if (User.IsInRole("PATIENT"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="RendezVous" asp-action="MesRendezVous">
+                                    <i class="fas fa-calendar-check"></i> À propos
+                                </a>
                             </li>
                         }
                     </ul>

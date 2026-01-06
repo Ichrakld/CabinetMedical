@@ -1,317 +1,639 @@
 ﻿@{
     ViewData["Title"] = "Calendrier des Rendez-vous";
-    var isPatient = (bool)(ViewBag.IsPatient ?? false);
+    var isPatient = ViewBag.IsPatient ?? false;
 }
 
+<style>
+    .calendar-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        padding: 20px;
+    }
+
+    /* FullCalendar Custom Styles */
+    .fc {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+        color: #333;
+    }
+
+    .fc-button-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3) !important;
+    }
+
+    .fc-button-primary:hover {
+        background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%) !important;
+    }
+
+    .fc-button-primary:disabled {
+        opacity: 0.6;
+    }
+
+    .fc-button-active {
+        background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%) !important;
+    }
+
+    .fc-day-today {
+        background-color: rgba(102, 126, 234, 0.1) !important;
+    }
+
+    .fc-event {
+        border: none !important;
+        border-radius: 5px !important;
+        padding: 2px 6px !important;
+        font-size: 0.8rem !important;
+        cursor: pointer;
+        margin-bottom: 2px !important;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .fc-event:hover {
+        transform: scale(1.02);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        z-index: 100 !important;
+    }
+
+    .fc-daygrid-event-dot {
+        display: none;
+    }
+
+    .fc-timegrid-event {
+        border-radius: 5px !important;
+    }
+
+    /* Legend */
+    .calendar-legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+    }
+
+    /* Filters */
+    .calendar-filters {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* Quick Stats */
+    .calendar-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-box {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-left: 4px solid;
+    }
+
+    .stat-box.today { border-left-color: #667eea; }
+    .stat-box.week { border-left-color: #28a745; }
+    .stat-box.pending { border-left-color: #ffc107; }
+    .stat-box.confirmed { border-left-color: #17a2b8; }
+
+    .stat-box h3 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .stat-box p {
+        margin: 0;
+        color: #666;
+        font-size: 0.8rem;
+    }
+
+    /* Modal */
+    .rdv-modal-header {
+        color: white;
+        border-radius: 0;
+    }
+
+    .rdv-detail-row {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .rdv-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .rdv-detail-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        font-size: 1rem;
+    }
+
+    .rdv-detail-content strong {
+        display: block;
+        color: #333;
+        font-size: 0.85rem;
+        margin-bottom: 2px;
+    }
+
+    .rdv-detail-content span {
+        color: #555;
+        font-size: 1rem;
+    }
+
+    /* Loading overlay */
+    .calendar-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        border-radius: 15px;
+    }
+
+    .calendar-loading.hidden {
+        display: none;
+    }
+</style>
+
 <div class="container-fluid py-4">
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">
-            <i class="fas fa-calendar-alt text-primary me-2"></i>Calendrier des Rendez-vous
-            @if (isPatient)
-            {
-                <span class="badge bg-info ms-2">Mes rendez-vous</span>
-            }
-        </h2>
         <div>
-            <a asp-action="Index" class="btn btn-outline-secondary me-2">
-                <i class="fas fa-list"></i> Vue Liste
+            <h2 class="mb-1">
+                <i class="fas fa-calendar-alt text-primary me-2"></i>Calendrier des Rendez-vous
+            </h2>
+            <p class="text-muted mb-0">
+                @if (isPatient)
+                {
+                    <text>Visualisez vos rendez-vous</text>
+                }
+                else
+                {
+                    <text>Visualisez et gérez tous les rendez-vous du cabinet</text>
+                }
+            </p>
+        </div>
+        <div class="btn-group">
+            <a asp-action="Index" class="btn btn-outline-primary">
+                <i class="fas fa-list me-1"></i>Liste
             </a>
             @if (!isPatient)
             {
                 <a asp-action="Create" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Nouveau RDV
+                    <i class="fas fa-plus me-1"></i>Nouveau RDV
                 </a>
             }
         </div>
     </div>
 
-    @if (!isPatient)
+    <!-- Quick Stats -->
+    <div class="calendar-stats" id="calendarStats">
+        <div class="stat-box today">
+            <h3 id="stat-today">-</h3>
+            <p>Aujourd'hui</p>
+        </div>
+        <div class="stat-box week">
+            <h3 id="stat-week">-</h3>
+            <p>Cette semaine</p>
+        </div>
+        <div class="stat-box pending">
+            <h3 id="stat-pending">-</h3>
+            <p>En attente</p>
+        </div>
+        <div class="stat-box confirmed">
+            <h3 id="stat-confirmed">-</h3>
+            <p>Confirmés</p>
+        </div>
+    </div>
+
+    <!-- Filtres (masqués pour les patients) -->
+    @if (!isPatient && ViewBag.Medecins != null)
     {
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label class="form-label"><i class="fas fa-user-md me-1"></i>Médecin</label>
-                        <select id="filterMedecin" class="form-select">
-                            <option value="">Tous les médecins</option>
-                            @foreach (var m in ViewBag.Medecins)
-                            {
-                                <option value="@m.Id">@m.Nom</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label"><i class="fas fa-filter me-1"></i>Statut</label>
-                        <select id="filterStatut" class="form-select">
-                            <option value="">Tous les statuts</option>
-                            <option value="En attente">En attente</option>
-                            <option value="Confirmé">Confirmé</option>
-                            <option value="Annulé">Annulé</option>
-                            <option value="Terminé">Terminé</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <button id="btnResetFilters" class="btn btn-outline-secondary w-100">
-                            <i class="fas fa-undo"></i> Réinitialiser
-                        </button>
-                    </div>
+        <div class="calendar-filters">
+            <div class="row align-items-end">
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <label class="form-label small text-muted mb-1">Filtrer par médecin</label>
+                    <select id="filterMedecin" class="form-select">
+                        <option value="">Tous les médecins</option>
+                        @foreach (var medecin in (IEnumerable<dynamic>)ViewBag.Medecins)
+                        {
+                            <option value="@medecin.Id">@medecin.Nom</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <label class="form-label small text-muted mb-1">Filtrer par statut</label>
+                    <select id="filterStatut" class="form-select">
+                        <option value="">Tous les statuts</option>
+                        <option value="En attente">En attente</option>
+                        <option value="Confirmé">Confirmé</option>
+                        <option value="Annulé">Annulé</option>
+                        <option value="Terminé">Terminé</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                        <i class="fas fa-redo me-1"></i>Réinitialiser
+                    </button>
                 </div>
             </div>
         </div>
     }
 
-    <div class="mb-3">
-        <span class="badge bg-warning text-dark me-2"><i class="fas fa-clock"></i> En attente</span>
-        <span class="badge bg-success me-2"><i class="fas fa-check"></i> Confirmé</span>
-        <span class="badge bg-danger me-2"><i class="fas fa-times"></i> Annulé</span>
-        <span class="badge bg-info me-2"><i class="fas fa-check-double"></i> Terminé</span>
+    <!-- Legend -->
+    <div class="calendar-legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffc107;"></div>
+            <span>En attente</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #28a745;"></div>
+            <span>Confirmé</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #dc3545;"></div>
+            <span>Annulé</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #17a2b8;"></div>
+            <span>Terminé</span>
+        </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div id="calendar"></div>
+    <!-- Calendar -->
+    <div class="calendar-container position-relative">
+        <div class="calendar-loading" id="calendarLoading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
         </div>
+        <div id="calendar"></div>
     </div>
 </div>
 
-<div class="modal fade" id="rdvModal" tabindex="-1">
+<!-- Modal Détails RDV -->
+<div class="modal fade" id="rdvModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" id="modalHeader">
-                <h5 class="modal-title"><i class="fas fa-calendar-check me-2"></i>Détails du Rendez-vous</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header rdv-modal-header" id="modalHeader" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-check me-2"></i>Détails du Rendez-vous
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="text-muted small">Date et Heure</label>
-                    <p class="fs-5 fw-bold text-primary" id="modalDateTime"></p>
-                </div>
-                <div class="row">
-                    <div class="col-6">
-                        <label class="text-muted small">Patient</label>
-                        <p class="fw-bold" id="modalPatient"></p>
+            <div class="modal-body p-0">
+                <div class="rdv-detail-row">
+                    <div class="rdv-detail-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-clock"></i>
                     </div>
-                    <div class="col-6">
-                        <label class="text-muted small">Médecin</label>
-                        <p class="fw-bold" id="modalMedecin"></p>
+                    <div class="rdv-detail-content">
+                        <strong>Date et Heure</strong>
+                        <span id="modalDateTime">-</span>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="text-muted small">Spécialité</label>
-                    <p id="modalSpecialite"></p>
+
+                <div class="rdv-detail-row">
+                    <div class="rdv-detail-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="rdv-detail-content">
+                        <strong>Patient</strong>
+                        <span id="modalPatient">-</span>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="text-muted small">Motif</label>
-                    <p id="modalMotif" class="fst-italic"></p>
+
+                <div class="rdv-detail-row">
+                    <div class="rdv-detail-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="rdv-detail-content">
+                        <strong>Médecin</strong>
+                        <span id="modalMedecin">-</span>
+                        <br><small class="text-muted" id="modalSpecialite"></small>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="text-muted small">Statut</label>
-                    <p><span id="modalStatut" class="badge fs-6"></span></p>
+
+                <div class="rdv-detail-row">
+                    <div class="rdv-detail-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="rdv-detail-content">
+                        <strong>Statut</strong>
+                        <span id="modalStatut">-</span>
+                    </div>
+                </div>
+
+                <div class="rdv-detail-row">
+                    <div class="rdv-detail-icon bg-secondary bg-opacity-10 text-secondary">
+                        <i class="fas fa-comment-medical"></i>
+                    </div>
+                    <div class="rdv-detail-content">
+                        <strong>Motif</strong>
+                        <span id="modalMotif">-</span>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer" id="modalFooter">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <a id="btnDetails" href="#" class="btn btn-info"><i class="fas fa-eye"></i> Voir</a>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fermer
+                </button>
                 @if (!isPatient)
                 {
-                    <a id="btnEdit" href="#" class="btn btn-warning"><i class="fas fa-edit"></i> Modifier</a>
-                    <button id="btnConfirm" class="btn btn-success"><i class="fas fa-check"></i> Confirmer</button>
-                    <button id="btnCancel" class="btn btn-danger"><i class="fas fa-times"></i> Annuler</button>
+                    <a href="#" id="btnEditRdv" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
                 }
+                <a href="#" id="btnDetailsRdv" class="btn btn-info">
+                    <i class="fas fa-eye me-1"></i>Voir détails
+                </a>
             </div>
         </div>
     </div>
 </div>
 
-@section Styles {
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
-    <style>
-        #calendar {
-            min-height: 700px;
-        }
-
-        .fc-event {
-            cursor: pointer;
-            border-radius: 4px;
-            padding: 2px 5px;
-            font-size: 0.85rem;
-        }
-
-            .fc-event:hover {
-                opacity: 0.9;
-                transform: scale(1.02);
-                transition: all 0.2s;
-            }
-
-        .fc-daygrid-day-number {
-            font-weight: 600;
-        }
-
-        .fc-day-today {
-            background-color: rgba(102, 126, 234, 0.1) !important;
-        }
-
-        .fc-toolbar-title {
-            font-size: 1.5rem !important;
-            font-weight: 600;
-        }
-
-        .modal-header.status-confirmed {
-            background-color: #28a745;
-            color: white;
-        }
-
-        .modal-header.status-pending {
-            background-color: #ffc107;
-            color: #212529;
-        }
-
-        .modal-header.status-cancelled {
-            background-color: #dc3545;
-            color: white;
-        }
-
-        .modal-header.status-completed {
-            background-color: #17a2b8;
-            color: white;
-        }
-    </style>
-}
-
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales/fr.global.min.js"></script>
+    <!-- FullCalendar 6 -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
-            var currentRdvId = null;
-            var isPatient = @(isPatient ? "true" : "false");
+            var loadingEl = document.getElementById('calendarLoading');
+            var rdvModal = new bootstrap.Modal(document.getElementById('rdvModal'));
+            var allEvents = [];
 
             var calendar = new FullCalendar.Calendar(calendarEl, {
-                locale: 'fr',
                 initialView: 'dayGridMonth',
+                locale: 'fr',
+                firstDay: 1,
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
                 },
-                buttonText: { today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour', list: 'Liste' },
+                buttonText: {
+                    today: "Aujourd'hui",
+                    month: 'Mois',
+                    week: 'Semaine',
+                    day: 'Jour',
+                    list: 'Liste'
+                },
                 navLinks: true,
                 editable: false,
-                selectable: !isPatient,
-                selectMirror: true,
+                selectable: false,
                 dayMaxEvents: 3,
+                moreLinkText: function(num) {
+                    return '+' + num + ' autres';
+                },
                 weekNumbers: true,
-                nowIndicator: true,
+                weekNumberTitle: 'S',
                 slotMinTime: '08:00:00',
                 slotMaxTime: '20:00:00',
                 allDaySlot: false,
                 slotDuration: '00:30:00',
+                height: 'auto',
 
+                // ========== CHARGEMENT DES ÉVÉNEMENTS ==========
                 events: function(info, successCallback, failureCallback) {
-                    var medecinId = document.getElementById('filterMedecin')?.value || '';
-                    var status = document.getElementById('filterStatut')?.value || '';
-                    var url = '@Url.Action("GetCalendarEvents")' + '?start=' + info.startStr + '&end=' + info.endStr;
-                    if (medecinId) url += '&medecinId=' + medecinId;
-                    if (status) url += '&status=' + encodeURIComponent(status);
+                    loadingEl.classList.remove('hidden');
 
-                    fetch(url).then(r => r.json()).then(data => successCallback(data)).catch(e => failureCallback(e));
+                    var params = new URLSearchParams({
+                        start: info.startStr,
+                        end: info.endStr
+                    });
+
+                    var medecinFilter = document.getElementById('filterMedecin');
+                    var statutFilter = document.getElementById('filterStatut');
+
+                    if (medecinFilter && medecinFilter.value) {
+                        params.append('medecinId', medecinFilter.value);
+                    }
+                    if (statutFilter && statutFilter.value) {
+                        params.append('status', statutFilter.value);
+                    }
+
+                    fetch('/RendezVous/GetCalendarEvents?' + params.toString())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Erreur réseau');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('📅 Événements chargés:', data.length);
+                            allEvents = data;
+                            updateStats(data);
+                            successCallback(data);
+                            loadingEl.classList.add('hidden');
+                        })
+                        .catch(error => {
+                            console.error('❌ Erreur chargement événements:', error);
+                            failureCallback(error);
+                            loadingEl.classList.add('hidden');
+                        });
                 },
 
+                // ========== CLIC SUR UN ÉVÉNEMENT ==========
                 eventClick: function(info) {
                     var event = info.event;
                     var props = event.extendedProps;
-                    currentRdvId = event.id;
 
-                    var startDate = new Date(event.start);
-                    document.getElementById('modalDateTime').textContent = startDate.toLocaleDateString('fr-FR', {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    });
-
+                    document.getElementById('modalDateTime').textContent = formatDate(event.start);
                     document.getElementById('modalPatient').textContent = props.patient || '-';
                     document.getElementById('modalMedecin').textContent = props.medecin || '-';
-                    document.getElementById('modalSpecialite').textContent = props.specialite || '-';
+                    document.getElementById('modalSpecialite').textContent = props.specialite || '';
                     document.getElementById('modalMotif').textContent = props.motif || 'Non spécifié';
 
-                    var statutBadge = document.getElementById('modalStatut');
-                    var modalHeader = document.getElementById('modalHeader');
-                    modalHeader.className = 'modal-header';
-                    statutBadge.className = 'badge fs-6';
+                    var statutHtml = getStatusBadge(props.statut);
+                    document.getElementById('modalStatut').innerHTML = statutHtml;
 
-                    switch(props.statut) {
-                        case 'Confirmé': statutBadge.classList.add('bg-success'); modalHeader.classList.add('status-confirmed'); break;
-                        case 'En attente': statutBadge.classList.add('bg-warning', 'text-dark'); modalHeader.classList.add('status-pending'); break;
-                        case 'Annulé': statutBadge.classList.add('bg-danger'); modalHeader.classList.add('status-cancelled'); break;
-                        case 'Terminé': statutBadge.classList.add('bg-info'); modalHeader.classList.add('status-completed'); break;
-                        default: statutBadge.classList.add('bg-secondary');
+                    var headerColors = {
+                        'En attente': 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+                        'Confirmé': 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                        'Annulé': 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+                        'Terminé': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+                    };
+                    document.getElementById('modalHeader').style.background =
+                        headerColors[props.statut] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
+                    var btnEdit = document.getElementById('btnEditRdv');
+                    var btnDetails = document.getElementById('btnDetailsRdv');
+
+                    if (btnEdit) {
+                        btnEdit.href = '/RendezVous/Edit/' + event.id;
                     }
-                    statutBadge.textContent = props.statut || 'Inconnu';
-
-                    document.getElementById('btnDetails').href = '/RendezVous/Details/' + currentRdvId;
-
-                    if (!isPatient) {
-                        document.getElementById('btnEdit').href = '/RendezVous/Edit/' + currentRdvId;
-                        var btnConfirm = document.getElementById('btnConfirm');
-                        var btnCancel = document.getElementById('btnCancel');
-
-                        if (props.statut === 'En attente') { btnConfirm.style.display = 'inline-block'; btnCancel.style.display = 'inline-block'; }
-                        else if (props.statut === 'Confirmé') { btnConfirm.style.display = 'none'; btnCancel.style.display = 'inline-block'; }
-                        else { btnConfirm.style.display = 'none'; btnCancel.style.display = 'none'; }
+                    if (btnDetails) {
+                        btnDetails.href = '/RendezVous/Details/' + event.id;
                     }
 
-                    new bootstrap.Modal(document.getElementById('rdvModal')).show();
+                    rdvModal.show();
                 },
 
-                select: function(info) {
-                    if (!isPatient) {
-                        var date = info.start.toISOString().slice(0, 16);
-                        window.location.href = '/RendezVous/Create?dateHeure=' + date;
-                    }
-                },
+                @if (!isPatient)
+                {
+                        <text>
+                    dateClick: function(info) {
+                        if (confirm('Créer un nouveau rendez-vous le ' + formatDateShort(info.date) + ' ?')) {
+                            window.location.href = '/RendezVous/Create?date=' + info.dateStr;
+                        }
+                    },
+                        </text>
+                }
 
                 eventDidMount: function(info) {
                     var props = info.event.extendedProps;
-                    info.el.title = props.patient + ' - ' + props.medecin + ' (' + props.statut + ')';
+                    var tooltipText = props.patient + '\n' +
+                                     props.medecin + '\n' +
+                                     'Statut: ' + props.statut;
+                    if (props.motif && props.motif !== 'Non spécifié') {
+                        tooltipText += '\nMotif: ' + props.motif;
+                    }
+                    info.el.setAttribute('title', tooltipText);
+                },
+
+                loading: function(isLoading) {
+                    if (isLoading) {
+                        loadingEl.classList.remove('hidden');
+                    } else {
+                        loadingEl.classList.add('hidden');
+                    }
                 }
             });
 
             calendar.render();
 
+            // ========== FILTRES ==========
             var filterMedecin = document.getElementById('filterMedecin');
             var filterStatut = document.getElementById('filterStatut');
-            if (filterMedecin) filterMedecin.addEventListener('change', () => calendar.refetchEvents());
-            if (filterStatut) filterStatut.addEventListener('change', () => calendar.refetchEvents());
-            document.getElementById('btnResetFilters')?.addEventListener('click', function() {
+
+            if (filterMedecin) {
+                filterMedecin.addEventListener('change', function() {
+                    calendar.refetchEvents();
+                });
+            }
+
+            if (filterStatut) {
+                filterStatut.addEventListener('change', function() {
+                    calendar.refetchEvents();
+                });
+            }
+
+            window.resetFilters = function() {
                 if (filterMedecin) filterMedecin.value = '';
                 if (filterStatut) filterStatut.value = '';
                 calendar.refetchEvents();
-            });
+            };
 
-            if (!isPatient) {
-                document.getElementById('btnConfirm')?.addEventListener('click', function() {
-                    if (currentRdvId && confirm('Confirmer ce rendez-vous ?')) {
-                        fetch('/RendezVous/ConfirmRdv/' + currentRdvId, { method: 'POST' })
-                            .then(r => r.json()).then(data => {
-                                if (data.success) {
-                                    bootstrap.Modal.getInstance(document.getElementById('rdvModal')).hide();
-                                    calendar.refetchEvents();
-                                }
-                            });
+            // ========== FONCTIONS UTILITAIRES ==========
+            function formatDate(date) {
+                if (!date) return '-';
+                var options = {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                };
+                return date.toLocaleDateString('fr-FR', options);
+            }
+
+            function formatDateShort(date) {
+                if (!date) return '-';
+                var options = {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                };
+                return date.toLocaleDateString('fr-FR', options);
+            }
+
+            function getStatusBadge(statut) {
+                var colors = {
+                    'En attente': 'warning',
+                    'Confirmé': 'success',
+                    'Annulé': 'danger',
+                    'Terminé': 'info'
+                };
+                var color = colors[statut] || 'secondary';
+                return '<span class="badge bg-' + color + ' fs-6">' + statut + '</span>';
+            }
+
+            function updateStats(events) {
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                var endOfWeek = new Date(today);
+                endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+                var todayCount = 0;
+                var weekCount = 0;
+                var pendingCount = 0;
+                var confirmedCount = 0;
+
+                events.forEach(function(evt) {
+                    var evtDate = new Date(evt.start);
+                    evtDate.setHours(0, 0, 0, 0);
+
+                    var statut = evt.extendedProps ? evt.extendedProps.statut : evt.statut;
+
+                    if (evtDate.getTime() === today.getTime()) {
+                        todayCount++;
+                    }
+                    if (evtDate >= today && evtDate < endOfWeek) {
+                        weekCount++;
+                    }
+                    if (statut === 'En attente') {
+                        pendingCount++;
+                    }
+                    if (statut === 'Confirmé') {
+                        confirmedCount++;
                     }
                 });
 
-                document.getElementById('btnCancel')?.addEventListener('click', function() {
-                    var raison = prompt('Raison de l\'annulation (optionnel):');
-                    if (currentRdvId) {
-                        fetch('/RendezVous/CancelRdv/' + currentRdvId + '?raison=' + encodeURIComponent(raison || ''), { method: 'POST' })
-                            .then(r => r.json()).then(data => {
-                                if (data.success) {
-                                    bootstrap.Modal.getInstance(document.getElementById('rdvModal')).hide();
-                                    calendar.refetchEvents();
-                                }
-                            });
-                    }
-                });
+                document.getElementById('stat-today').textContent = todayCount;
+                document.getElementById('stat-week').textContent = weekCount;
+                document.getElementById('stat-pending').textContent = pendingCount;
+                document.getElementById('stat-confirmed').textContent = confirmedCount;
             }
         });
     </script>

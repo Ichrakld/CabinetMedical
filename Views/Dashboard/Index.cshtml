@@ -2,249 +2,420 @@
     ViewData["Title"] = "Tableau de Bord";
 }
 
-<div class="page-header mb-4">
-    <h1><i class="fas fa-chart-line"></i> Tableau de Bord</h1>
-    <p class="text-muted">Vue d'ensemble de l'activité du cabinet médical</p>
-</div>
+<style>
+    .dashboard-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-card {
+        border-radius: 15px;
+        color: white;
+        padding: 1.5rem;
+    }
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .rdv-item {
+        border-left: 4px solid #28a745;
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+        transition: all 0.2s;
+    }
+    .rdv-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+    .rdv-item.en-attente {
+        border-left-color: #ffc107;
+    }
+    .rdv-item.confirme {
+        border-left-color: #28a745;
+    }
+    .rdv-item.annule {
+        border-left-color: #dc3545;
+        opacity: 0.6;
+    }
+    .patient-card {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-radius: 10px;
+        background: #f8f9fa;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+    }
+    .patient-card:hover {
+        background: #e9ecef;
+    }
+    .patient-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 12px;
+    }
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        border-radius: 10px 10px 0 0;
+    }
+    .chart-container {
+        height: 300px;
+    }
+</style>
 
-<!-- Cartes de statistiques -->
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Total Patients
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalPatients</div>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-tachometer-alt text-primary me-2"></i>Tableau de Bord
+            </h2>
+            <p class="text-muted mb-0">
+                <i class="fas fa-calendar me-1"></i>@DateTime.Now.ToString("dddd, dd MMMM yyyy")
+            </p>
+        </div>
+        <div class="btn-group">
+            <a asp-controller="RendezVous" asp-action="Calendrier" class="btn btn-outline-primary">
+                <i class="fas fa-calendar-alt me-1"></i>Calendrier
+            </a>
+            <a asp-controller="RendezVous" asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Nouveau RDV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques principales -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-1 text-white-50">Total Patients</p>
+                        <h3 class="stat-value mb-0">@ViewBag.TotalPatients</h3>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-primary opacity-50"></i>
+                    <i class="fas fa-users stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-1 text-white-50">RDV Aujourd'hui</p>
+                        <h3 class="stat-value mb-0">@ViewBag.TotalRdvAujourdHui</h3>
                     </div>
+                    <i class="fas fa-calendar-check stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-1 text-white-50">Consultations (Mois)</p>
+                        <h3 class="stat-value mb-0">@ViewBag.TotalConsultationsMois</h3>
+                    </div>
+                    <i class="fas fa-stethoscope stat-icon"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-1 text-white-50">Total Médecins</p>
+                        <h3 class="stat-value mb-0">@ViewBag.TotalMedecins</h3>
+                    </div>
+                    <i class="fas fa-user-md stat-icon"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Médecins
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalMedecins</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-md fa-2x text-success opacity-50"></i>
-                    </div>
+    <!-- Statuts des RDV -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card dashboard-card border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <h4 class="text-warning mb-0">@ViewBag.RdvEnAttente</h4>
+                    <small class="text-muted">En attente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card border-start border-success border-4">
+                <div class="card-body text-center">
+                    <h4 class="text-success mb-0">@ViewBag.RdvConfirmes</h4>
+                    <small class="text-muted">Confirmés</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card border-start border-danger border-4">
+                <div class="card-body text-center">
+                    <h4 class="text-danger mb-0">@ViewBag.RdvAnnules</h4>
+                    <small class="text-muted">Annulés (Mois)</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card border-start border-info border-4">
+                <div class="card-body text-center">
+                    <h4 class="text-info mb-0">@ViewBag.RdvTermines</h4>
+                    <small class="text-muted">Terminés (Mois)</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            RDV Aujourd'hui
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalRdvAujourdHui</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-calendar-day fa-2x text-info opacity-50"></i>
-                    </div>
+    <div class="row">
+        <!-- Prochains Rendez-vous -->
+        <div class="col-lg-7 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="section-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Prochains Rendez-vous
+                    </h5>
+                    <a asp-controller="RendezVous" asp-action="Index" class="btn btn-sm btn-light">
+                        Voir tout
+                    </a>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Consultations ce mois
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalConsultationsMois</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-stethoscope fa-2x text-warning opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Statuts des RDV -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-light">
-            <div class="card-body text-center">
-                <span class="badge bg-warning fs-4 mb-2">@ViewBag.RdvEnAttente</span>
-                <p class="mb-0">En attente</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light">
-            <div class="card-body text-center">
-                <span class="badge bg-success fs-4 mb-2">@ViewBag.RdvConfirmes</span>
-                <p class="mb-0">Confirmés</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light">
-            <div class="card-body text-center">
-                <span class="badge bg-danger fs-4 mb-2">@ViewBag.RdvAnnules</span>
-                <p class="mb-0">Annulés (ce mois)</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light">
-            <div class="card-body text-center">
-                <span class="badge bg-primary fs-4 mb-2">@ViewBag.RdvTermines</span>
-                <p class="mb-0">Terminés (ce mois)</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Graphique des RDV par jour -->
-    <div class="col-lg-8 mb-4">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h6 class="m-0"><i class="fas fa-chart-bar"></i> Rendez-vous (7 derniers jours)</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="rdvParJourChart" height="100"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Graphique des RDV par statut -->
-    <div class="col-lg-4 mb-4">
-        <div class="card shadow">
-            <div class="card-header bg-info text-white">
-                <h6 class="m-0"><i class="fas fa-chart-pie"></i> Répartition par statut</h6>
-            </div>
-            <div class="card-body">
-                <canvas id="rdvParStatutChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Prochains RDV -->
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                <h6 class="m-0"><i class="fas fa-calendar-alt"></i> Prochains Rendez-vous</h6>
-                <a href="@Url.Action("Index", "RendezVous")" class="btn btn-sm btn-light">Voir tout</a>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date/Heure</th>
-                                <th>Patient</th>
-                                <th>Médecin</th>
-                                <th>Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (ViewBag.ProchainsRdv != null)
-                            {
-                                foreach (var rdv in ViewBag.ProchainsRdv)
-                                {
-                                    var badgeClass = rdv.Statut == "Confirmé" ? "bg-success" :
-                                    rdv.Statut == "En attente" ? "bg-warning" :
-                                    rdv.Statut == "Annulé" ? "bg-danger" : "bg-secondary";
-                                    <tr>
-                                        <td>
-                                            <strong>@rdv.DateHeure.ToString("dd/MM")</strong><br />
-                                            <small class="text-muted">@rdv.DateHeure.ToString("HH:mm")</small>
-                                        </td>
-                                        <td>@rdv.Patient.IdNavigation.Nom @rdv.Patient.IdNavigation.Prenom</td>
-                                        <td>Dr. @rdv.Medecin.IdNavigation.Nom</td>
-                                        <td><span class="badge @badgeClass">@rdv.Statut</span></td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Derniers patients -->
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow">
-            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                <h6 class="m-0"><i class="fas fa-user-plus"></i> Derniers Patients Inscrits</h6>
-                <a href="@Url.Action("Index", "Patients")" class="btn btn-sm btn-dark">Voir tout</a>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    @if (ViewBag.DerniersPatients != null)
+                <div class="card-body">
+                    @if (ViewBag.ProchainsRdv != null && ((IEnumerable<dynamic>)ViewBag.ProchainsRdv).Any())
                     {
-                        foreach (var patient in ViewBag.DerniersPatients)
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <i class="fas fa-user text-primary me-2"></i>
-                                    <strong>@patient.IdNavigation.Nom @patient.IdNavigation.Prenom</strong>
-                                    <br />
-                                    <small class="text-muted">
-                                        <i class="fas fa-envelope"></i> @patient.IdNavigation.Email
-                                    </small>
-                                </div>
-                                <a href="@Url.Action("Details", "Patients", new { id = patient.Id })" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </li>
-                        }
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date/Heure</th>
+                                        <th>Patient</th>
+                                        <th>Médecin</th>
+                                        <th>Statut</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var rdv in (IEnumerable<dynamic>)ViewBag.ProchainsRdv)
+                                    {
+                                        var statusClass = rdv.Statut == "Confirmé" ? "bg-success" :
+                                        rdv.Statut == "En attente" ? "bg-warning text-dark" :
+                                        rdv.Statut == "Annulé" ? "bg-danger" : "bg-secondary";
+                                        var isToday = ((DateTime)rdv.DateHeure).Date == DateTime.Today;
+                                        <tr class="@(isToday ? "table-info" : "")">
+                                            <td>
+                                                <strong>@((DateTime)rdv.DateHeure).ToString("dd/MM/yyyy")</strong>
+                                                <br>
+                                                <small class="text-primary">
+                                                    <i class="fas fa-clock me-1"></i>@((DateTime)rdv.DateHeure).ToString("HH:mm")
+                                                </small>
+                                                @if (isToday)
+                                                {
+                                                    <span class="badge bg-info ms-1">Aujourd'hui</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="patient-avatar" style="width:35px;height:35px;font-size:12px;margin-right:8px;">
+                                                        @(rdv.Patient?.IdNavigation?.Nom?.Substring(0, 1))@(rdv.Patient?.IdNavigation?.Prenom?.Substring(0, 1))
+                                                    </div>
+                                                    <div>
+                                                        <strong>@rdv.Patient?.IdNavigation?.Nom @rdv.Patient?.IdNavigation?.Prenom</strong>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <i class="fas fa-user-md text-success me-1"></i>
+                                                Dr. @rdv.Medecin?.IdNavigation?.Nom
+                                            </td>
+                                            <td>
+                                                <span class="badge @statusClass">@rdv.Statut</span>
+                                            </td>
+                                            <td>
+                                                <a asp-controller="RendezVous" asp-action="Details" asp-route-id="@rdv.NumCom"
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
-                </ul>
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucun rendez-vous à venir</h5>
+                            <p class="text-muted">Planifiez un nouveau rendez-vous pour commencer.</p>
+                            <a asp-controller="RendezVous" asp-action="Create" class="btn btn-success">
+                                <i class="fas fa-plus me-1"></i>Nouveau RDV
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Derniers Patients Inscrits -->
+        <div class="col-lg-5 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="section-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Derniers Patients Inscrits
+                    </h5>
+                    <a asp-controller="Patients" asp-action="Index" class="btn btn-sm btn-dark">
+                        Voir tout
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    @if (ViewBag.DerniersPatients != null && ((IEnumerable<dynamic>)ViewBag.DerniersPatients).Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var patient in (IEnumerable<dynamic>)ViewBag.DerniersPatients)
+                            {
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <div class="patient-avatar">
+                                                @(patient.IdNavigation?.Nom?.Substring(0, 1))@(patient.IdNavigation?.Prenom?.Substring(0, 1))
+                                            </div>
+                                            <div>
+                                                <strong>@patient.IdNavigation?.Nom @patient.IdNavigation?.Prenom</strong>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-envelope me-1"></i>@patient.IdNavigation?.Email
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <a asp-controller="Patients" asp-action="Details" asp-route-id="@patient.Id"
+                                           class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucun patient récent</h5>
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
+
+    <div class="row">
+        <!-- Graphique des RDV par jour -->
+        <div class="col-lg-8 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line text-primary me-2"></i>Rendez-vous des 7 derniers jours
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="rdvChart" class="chart-container"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphique des RDV par statut -->
+        <div class="col-lg-4 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>RDV par Statut
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statutChart" class="chart-container"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Médecins -->
+    @if (ViewBag.TopMedecins != null && ((IEnumerable<dynamic>)ViewBag.TopMedecins).Any())
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-trophy text-warning me-2"></i>Top 5 Médecins (Consultations ce mois)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var item in (IEnumerable<dynamic>)ViewBag.TopMedecins)
+                            {
+                                <div class="col-md-2 text-center">
+                                    <div class="mb-2">
+                                        <i class="fas fa-user-md fa-3x text-primary"></i>
+                                    </div>
+                                    <h6>Dr. @item.Medecin?.IdNavigation?.Nom</h6>
+                                    <span class="badge bg-success fs-6">@item.NbConsultations consultations</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Graphique RDV par jour
-        fetch('@Url.Action("GetStatsRdvParJour", "Dashboard")')
-            .then(response => response.json())
-            .then(data => {
-                const ctx = document.getElementById('rdvParJourChart').getContext('2d');
+        $(document).ready(function() {
+            // Graphique des RDV par jour
+            $.get('/Dashboard/GetStatsRdvParJour', function(data) {
+                var ctx = document.getElementById('rdvChart').getContext('2d');
                 new Chart(ctx, {
-                    type: 'bar',
+                    type: 'line',
                     data: {
                         labels: data.map(d => d.date),
                         datasets: [{
                             label: 'Rendez-vous',
                             data: data.map(d => d.count),
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
                         }]
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
                         scales: {
                             y: {
                                 beginAtZero: true,
@@ -255,16 +426,14 @@
                 });
             });
 
-        // Graphique RDV par statut
-        fetch('@Url.Action("GetStatsRdvParStatut", "Dashboard")')
-            .then(response => response.json())
-            .then(data => {
-                const ctx = document.getElementById('rdvParStatutChart').getContext('2d');
-                const colors = {
+            // Graphique des RDV par statut
+            $.get('/Dashboard/GetStatsRdvParStatut', function(data) {
+                var ctx = document.getElementById('statutChart').getContext('2d');
+                var colors = {
                     'En attente': '#ffc107',
                     'Confirmé': '#28a745',
                     'Annulé': '#dc3545',
-                    'Terminé': '#007bff'
+                    'Terminé': '#17a2b8'
                 };
                 new Chart(ctx, {
                     type: 'doughnut',
@@ -277,33 +446,15 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false,
                         plugins: {
-                            legend: { position: 'bottom' }
+                            legend: {
+                                position: 'bottom'
+                            }
                         }
                     }
                 });
             });
+        });
     </script>
 }
-
-<style>
-    .border-left-primary {
-        border-left: 4px solid #4e73df !important;
-    }
-
-    .border-left-success {
-        border-left: 4px solid #1cc88a !important;
-    }
-
-    .border-left-info {
-        border-left: 4px solid #36b9cc !important;
-    }
-
-    .border-left-warning {
-        border-left: 4px solid #f6c23e !important;
-    }
-
-    .opacity-50 {
-        opacity: 0.5;
-    }
-</style>
