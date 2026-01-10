@@ -58,7 +58,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // Helper : Vérifier conflit de RDV (même médecin ou patient à la même heure)
+        // Helper : Vérifier conflit de RDV
         // ============================================================
         private async Task<(bool hasConflict, string message)> CheckRdvConflictAsync(int medecinId, int patientId, DateTime dateHeure, int? excludeRdvId = null)
         {
