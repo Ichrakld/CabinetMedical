@@ -1,0 +1,169 @@
+﻿@* 
+    Partial View : _Pagination.cshtml
+    Vue partielle réutilisable pour la pagination
+    
+    Utilisation :
+    @await Html.PartialAsync("_Pagination", new PaginationPartialViewModel {
+        CurrentPage = Model.Consultations.CurrentPage,
+        TotalPages = Model.Consultations.TotalPages,
+        PageSize = Model.PageSize,
+        TotalCount = Model.Consultations.TotalCount,
+        ActionName = "Index",
+        RouteValues = new Dictionary<string, string> {
+            { "searchTerm", Model.SearchTerm },
+            { "sortBy", Model.SortBy }
+        }
+    })
+*@
+
+@model GestionCabinetMedical.ViewModels.PaginationPartialViewModel
+
+@if (Model.TotalPages > 0)
+{
+    <div class="card-footer bg-light">
+        <div class="row align-items-center">
+            <!-- Informations sur les résultats -->
+            <div class="col-md-4">
+                <small class="text-muted">
+                    <i class="fas fa-list me-1"></i>
+                    Affichage de @Model.FirstItemIndex à @Model.LastItemIndex sur @Model.TotalCount résultat(s)
+                </small>
+            </div>
+
+            <!-- Pagination centrale -->
+            <div class="col-md-4">
+                @if (Model.TotalPages > 1)
+                {
+                    <nav aria-label="Navigation des pages">
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            <!-- Bouton Première page -->
+                            <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
+                                <a class="page-link"
+                                   href="@GeneratePageUrl(1)"
+                                   title="Première page"
+                                   aria-label="Première page">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+
+                            <!-- Bouton Précédent -->
+                            <li class="page-item @(!Model.HasPreviousPage ? "disabled" : "")">
+                                <a class="page-link"
+                                   href="@GeneratePageUrl(Model.CurrentPage - 1)"
+                                   title="Page précédente"
+                                   aria-label="Page précédente">
+                                    <i class="fas fa-angle-left"></i> Précédent
+                                </a>
+                            </li>
+
+                            <!-- Numéros de page -->
+                            @foreach (var pageNum in Model.GetPageNumbers())
+                            {
+                                if (pageNum == null)
+                                {
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item @(pageNum == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" href="@GeneratePageUrl(pageNum.Value)">@pageNum</a>
+                                    </li>
+                                }
+                            }
+
+                            <!-- Bouton Suivant -->
+                            <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
+                                <a class="page-link"
+                                   href="@GeneratePageUrl(Model.CurrentPage + 1)"
+                                   title="Page suivante"
+                                   aria-label="Page suivante">
+                                    Suivant <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+
+                            <!-- Bouton Dernière page -->
+                            <li class="page-item @(!Model.HasNextPage ? "disabled" : "")">
+                                <a class="page-link"
+                                   href="@GeneratePageUrl(Model.TotalPages)"
+                                   title="Dernière page"
+                                   aria-label="Dernière page">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            </div>
+
+            <!-- Sélecteur de taille de page -->
+            <div class="col-md-4 text-end">
+                <form method="get" class="d-inline-flex align-items-center gap-2" id="pageSizeForm_@Model.FormId">
+                    <label class="form-label mb-0 text-muted small">
+                        <i class="fas fa-th-list me-1"></i>Afficher :
+                    </label>
+                    <select name="pageSize" class="form-select form-select-sm" style="width: auto;"
+                            onchange="this.form.submit()">
+                        @foreach (var size in GestionCabinetMedical.ViewModels.PageSizeOptions.Sizes)
+                        {
+                            <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                        }
+                    </select>
+                    <span class="text-muted small">par page</span>
+
+                    <!-- Conserver les autres paramètres de filtre -->
+                    <input type="hidden" name="page" value="1" />
+                    @if (Model.RouteValues != null)
+                    {
+                        @foreach (var kv in Model.RouteValues.Where(x => !string.IsNullOrEmpty(x.Value) && x.Key != "pageSize" && x.Key != "page"))
+                        {
+                            <input type="hidden" name="@kv.Key" value="@kv.Value" />
+                        }
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@functions {
+    string GeneratePageUrl(int page)
+    {
+        var routeValues = new Dictionary<string, object?> { { "page", page }, { "pageSize", Model.PageSize } };
+
+        if (Model.RouteValues != null)
+        {
+            foreach (var kv in Model.RouteValues.Where(x => !string.IsNullOrEmpty(x.Value)))
+            {
+                routeValues[kv.Key] = kv.Value;
+            }
+        }
+
+        return Url.Action(Model.ActionName, Model.ControllerName, routeValues) ?? "#";
+    }
+}
+
+<style>
+    .pagination .page-link {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        margin: 0 2px;
+    }
+
+    .pagination .page-item.active .page-link {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        color: #6c757d;
+        pointer-events: none;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
+
+    .card-footer .form-select-sm {
+        min-width: 70px;
+    }
+</style>

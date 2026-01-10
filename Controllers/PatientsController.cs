@@ -26,15 +26,19 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // GET: Patients - Avec filtres, recherche et statistiques
+        // GET: Patients - Avec filtres, recherche, statistiques et pagination
         // ============================================================
         public async Task<IActionResult> Index(
             string? searchTerm,
             string? statut,
             string? sortBy = "nom",
-            int page = 1)
+            int page = 1,
+            int pageSize = 10)
         {
-            var pageSize = 10;
+            // Valider la taille de page
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
             var query = _context.Patients
                 .Include(p => p.IdNavigation)
                 .Include(p => p.RendezVous)

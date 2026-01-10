@@ -1,87 +1,247 @@
-﻿@model IEnumerable<GestionCabinetMedical.Models.RendezVou>
+﻿@model GestionCabinetMedical.ViewModels.RendezVousIndexViewModel
+@using GestionCabinetMedical.ViewModels
 
 @{
     ViewData["Title"] = "Gestion des Rendez-vous";
-    var isPatient = (bool)(ViewBag.IsPatient ?? false);
 }
 
 <div class="container-fluid py-4">
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0">
             <i class="fas fa-calendar-alt text-primary me-2"></i>
-            @(isPatient ? "Mes Rendez-vous" : "Gestion des Rendez-vous")
+            @(Model.IsPatient ? "Mes Rendez-vous" : "Gestion des Rendez-vous")
         </h2>
         <div>
-            <a asp-action="Calendrier" class="btn btn-outline-info me-2"><i class="fas fa-calendar"></i> Calendrier</a>
-            @if (!isPatient)
+            <a asp-action="Calendrier" class="btn btn-outline-info me-2">
+                <i class="fas fa-calendar me-1"></i>Calendrier
+            </a>
+            @if (!Model.IsPatient)
             {
                 <a asp-action="ExportExcel" class="btn btn-success me-2"
-                   asp-route-search="@ViewBag.CurrentSearch"
-                   asp-route-statut="@ViewBag.CurrentStatut"
-                   asp-route-dateDebut="@ViewBag.DateDebut"
-                   asp-route-dateFin="@ViewBag.DateFin"
-                   asp-route-periode="@ViewBag.Periode">
-                    <i class="fas fa-file-excel"></i> Exporter
+                   asp-route-searchTerm="@Model.SearchTerm"
+                   asp-route-statut="@Model.Statut"
+                   asp-route-dateDebut="@Model.DateDebut?.ToString("yyyy-MM-dd")"
+                   asp-route-dateFin="@Model.DateFin?.ToString("yyyy-MM-dd")"
+                   asp-route-periode="@Model.Periode"
+                   asp-route-medecinId="@Model.MedecinId">
+                    <i class="fas fa-file-excel me-1"></i>Exporter
                 </a>
-                <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus"></i> Nouveau RDV</a>
+                <a asp-action="Create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Nouveau RDV
+                </a>
             }
         </div>
     </div>
 
+    <!-- Messages -->
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
 
-    @if (isPatient)
+    @if (Model.IsPatient)
     {
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>Vous consultez uniquement vos propres rendez-vous.
         </div>
     }
 
-    @if (!isPatient)
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1 small">Total</h6>
+                            <h3 class="mb-0">@Model.TotalRendezVous</h3>
+                        </div>
+                        <i class="fas fa-calendar-alt fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1 small">Aujourd'hui</h6>
+                            <h3 class="mb-0">@Model.RendezVousAujourdHui</h3>
+                        </div>
+                        <i class="fas fa-calendar-day fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-dark shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-muted mb-1 small">En attente</h6>
+                            <h3 class="mb-0">@Model.RendezVousEnAttente</h3>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1 small">Confirmés</h6>
+                            <h3 class="mb-0">@Model.RendezVousConfirmes</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1 small">Annulés</h6>
+                            <h3 class="mb-0">@Model.RendezVousAnnules</h3>
+                        </div>
+                        <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1 small">Cette semaine</h6>
+                            <h3 class="mb-0">@Model.RendezVousCetteSemaine</h3>
+                        </div>
+                        <i class="fas fa-calendar-week fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres (cachés pour les patients) -->
+    @if (!Model.IsPatient)
     {
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <form asp-action="Index" method="get">
+                <form asp-action="Index" method="get" id="filterForm">
                     <div class="row g-3 align-items-end">
                         <div class="col-md-3">
-                            <label class="form-label"><i class="fas fa-search"></i> Recherche</label>
-                            <input type="text" name="search" class="form-control" placeholder="Patient ou médecin..." value="@ViewBag.CurrentSearch">
+                            <label class="form-label">
+                                <i class="fas fa-search me-1"></i>Recherche
+                            </label>
+                            <input type="text" name="searchTerm" class="form-control"
+                                   placeholder="Patient, médecin, motif..."
+                                   value="@Model.SearchTerm">
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label"><i class="fas fa-filter"></i> Statut</label>
+                            <label class="form-label">
+                                <i class="fas fa-filter me-1"></i>Statut
+                            </label>
                             <select name="statut" class="form-select">
                                 <option value="">Tous</option>
-                                <option value="En attente" selected="@(ViewBag.CurrentStatut == "En attente")">En attente</option>
-                                <option value="Confirmé" selected="@(ViewBag.CurrentStatut == "Confirmé")">Confirmé</option>
-                                <option value="Annulé" selected="@(ViewBag.CurrentStatut == "Annulé")">Annulé</option>
-                                <option value="Terminé" selected="@(ViewBag.CurrentStatut == "Terminé")">Terminé</option>
+                                <option value="En attente" selected="@(Model.Statut == "En attente" ? "selected" : null)">En attente</option>
+                                <option value="Confirmé" selected="@(Model.Statut == "Confirmé" ? "selected" : null)">Confirmé</option>
+                                <option value="Annulé" selected="@(Model.Statut == "Annulé" ? "selected" : null)">Annulé</option>
+                                <option value="Terminé" selected="@(Model.Statut == "Terminé" ? "selected" : null)">Terminé</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label"><i class="fas fa-clock"></i> Période</label>
+                            <label class="form-label">
+                                <i class="fas fa-clock me-1"></i>Période
+                            </label>
                             <select name="periode" class="form-select">
                                 <option value="">Toutes</option>
-                                <option value="aujourd'hui" selected="@(ViewBag.Periode == "aujourd'hui")">Aujourd'hui</option>
-                                <option value="semaine" selected="@(ViewBag.Periode == "semaine")">Cette semaine</option>
-                                <option value="mois" selected="@(ViewBag.Periode == "mois")">Ce mois</option>
+                                <option value="aujourd'hui" selected="@(Model.Periode == "aujourd'hui" ? "selected" : null)">Aujourd'hui</option>
+                                <option value="semaine" selected="@(Model.Periode == "semaine" ? "selected" : null)">Cette semaine</option>
+                                <option value="mois" selected="@(Model.Periode == "mois" ? "selected" : null)">Ce mois</option>
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Date début</label>
-                            <input type="date" name="dateDebut" class="form-control" value="@ViewBag.DateDebut">
+                            <input type="date" name="dateDebut" class="form-control"
+                                   value="@Model.DateDebut?.ToString("yyyy-MM-dd")">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Date fin</label>
-                            <input type="date" name="dateFin" class="form-control" value="@ViewBag.DateFin">
+                            <input type="date" name="dateFin" class="form-control"
+                                   value="@Model.DateFin?.ToString("yyyy-MM-dd")">
                         </div>
                         <div class="col-md-1">
-                            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">
+                                <i class="fas fa-user-md me-1"></i>Médecin
+                            </label>
+                            <select name="medecinId" class="form-select">
+                                <option value="">Tous les médecins</option>
+                                @if (Model.Medecins != null)
+                                {
+                                    foreach (var med in Model.Medecins)
+                                    {
+                                        <option value="@med.Id" selected="@(Model.MedecinId == med.Id ? "selected" : null)">
+                                            Dr. @med.Nom - @med.Specialite
+                                        </option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">
+                                <i class="fas fa-sort me-1"></i>Trier par
+                            </label>
+                            <select name="sortBy" class="form-select">
+                                <option value="date" selected="@(Model.SortBy == "date" ? "selected" : null)">Date</option>
+                                <option value="patient" selected="@(Model.SortBy == "patient" ? "selected" : null)">Patient</option>
+                                <option value="medecin" selected="@(Model.SortBy == "medecin" ? "selected" : null)">Médecin</option>
+                                <option value="statut" selected="@(Model.SortBy == "statut" ? "selected" : null)">Statut</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">
+                                <i class="fas fa-sort-amount-down me-1"></i>Ordre
+                            </label>
+                            <select name="sortOrder" class="form-select">
+                                <option value="asc" selected="@(Model.SortOrder == "asc" ? "selected" : null)">Croissant</option>
+                                <option value="desc" selected="@(Model.SortOrder == "desc" ? "selected" : null)">Décroissant</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            @if (!string.IsNullOrEmpty(Model.SearchTerm) || !string.IsNullOrEmpty(Model.Statut) ||
+                                                    !string.IsNullOrEmpty(Model.Periode) || Model.DateDebut.HasValue || Model.DateFin.HasValue || Model.MedecinId.HasValue)
+                            {
+                                <a asp-action="Index" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>Réinitialiser
+                                </a>
+                                <span class="ms-2 text-muted">
+                                    @Model.RendezVous.TotalCount résultat(s) trouvé(s)
+                                </span>
+                            }
                         </div>
                     </div>
                 </form>
@@ -89,6 +249,7 @@
         </div>
     }
 
+    <!-- Liste des rendez-vous -->
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
@@ -104,71 +265,118 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!Model.Any())
+                    @if (!Model.RendezVous.Any())
                     {
                         <tr>
                             <td colspan="7" class="text-center py-5">
                                 <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                                 <h5 class="text-muted">Aucun rendez-vous trouvé</h5>
+                                <p class="text-muted mb-0">Essayez de modifier vos critères de recherche</p>
                             </td>
                         </tr>
                     }
                     else
                     {
-                        foreach (var rdv in Model)
+                        var today = DateTime.Today;
+                        foreach (var rdv in Model.RendezVous)
                         {
-                            var isPast = rdv.DateHeure < DateTime.Now;
-                            var badgeClass = rdv.Statut == "Confirmé" ? "bg-success" :
-                            rdv.Statut == "Annulé" ? "bg-danger" :
-                            rdv.Statut == "Terminé" ? "bg-info" : "bg-warning text-dark";
-                            <tr class="@(isPast && rdv.Statut != "Annulé" ? "table-secondary" : "")">
+                            var isToday = rdv.DateHeure.Date == today;
+                            var isPast = rdv.DateHeure < DateTime.Now && rdv.Statut != "Terminé" && rdv.Statut != "Annulé";
+                            var badgeClass = rdv.Statut switch
+                            {
+                                "Confirmé" => "bg-success",
+                                "Annulé" => "bg-danger",
+                                "Terminé" => "bg-info",
+                                _ => "bg-warning text-dark"
+                            };
+
+                            <tr class="@(isToday ? "table-info" : isPast ? "table-secondary" : "")">
                                 <td><strong>@rdv.NumCom</strong></td>
                                 <td>
-                                    <i class="fas fa-calendar text-primary me-1"></i>
-                                    @rdv.DateHeure.ToString("dd/MM/yyyy")
-                                    <br><small class="text-muted"><i class="fas fa-clock"></i> @rdv.DateHeure.ToString("HH:mm")</small>
+                                    <div>
+                                        <i class="fas fa-calendar text-primary me-1"></i>
+                                        @rdv.DateHeure.ToString("dd/MM/yyyy")
+                                        @if (isToday)
+                                        {
+                                            <span class="badge bg-info ms-1">Aujourd'hui</span>
+                                        }
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>@rdv.DateHeure.ToString("HH:mm")
+                                    </small>
                                 </td>
                                 <td>
                                     <strong>@rdv.Patient?.IdNavigation?.Nom @rdv.Patient?.IdNavigation?.Prenom</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-phone me-1"></i>@(rdv.Patient?.IdNavigation?.Telephone ?? "-")
+                                    </small>
                                 </td>
                                 <td>
                                     <span class="text-primary">Dr. @rdv.Medecin?.IdNavigation?.Nom</span>
-                                    <br><small class="text-muted">@rdv.Medecin?.Specialite</small>
+                                    <br>
+                                    <small class="text-muted">@rdv.Medecin?.Specialite</small>
                                 </td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(rdv.Motif))
                                     {
-                                        <small>@(rdv.Motif.Length > 30 ? rdv.Motif.Substring(0, 30) + "..." : rdv.Motif)</small>
+                                        <small title="@rdv.Motif">
+                                            @(rdv.Motif.Length > 30 ? rdv.Motif.Substring(0, 30) + "..." : rdv.Motif)
+                                        </small>
                                     }
                                     else
                                     {
                                         <small class="text-muted">-</small>
                                     }
                                 </td>
-                                <td><span class="badge @badgeClass">@rdv.Statut</span></td>
+                                <td>
+                                    <span class="badge @badgeClass">
+                                        @switch (rdv.Statut)
+                                        {
+                                            case "Confirmé":
+                                                <i class="fas fa-check-circle me-1"></i>
+                                                break;
+                                            case "Annulé":
+                                                <i class="fas fa-times-circle me-1"></i>
+                                                break;
+                                            case "Terminé":
+                                                <i class="fas fa-flag-checkered me-1"></i>
+                                                break;
+                                            default:
+                                                <i class="fas fa-clock me-1"></i>
+                                                break;
+                                        }
+                                        @rdv.Statut
+                                    </span>
+                                </td>
                                 <td class="text-end">
                                     <div class="btn-group btn-group-sm">
-                                        <a asp-action="Details" asp-route-id="@rdv.NumCom" class="btn btn-outline-info" title="Détails">
+                                        <a asp-action="Details" asp-route-id="@rdv.NumCom"
+                                           class="btn btn-outline-info" title="Détails">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        @if (!isPatient)
+                                        @if (!Model.IsPatient)
                                         {
-                                            <a asp-action="Edit" asp-route-id="@rdv.NumCom" class="btn btn-outline-warning" title="Modifier">
+                                            <a asp-action="Edit" asp-route-id="@rdv.NumCom"
+                                               class="btn btn-outline-primary" title="Modifier">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             @if (rdv.Statut == "En attente")
                                             {
-                                                <button class="btn btn-outline-success btn-confirm" data-id="@rdv.NumCom" title="Confirmer">
+                                                <button class="btn btn-outline-success btn-confirm"
+                                                        data-id="@rdv.NumCom" title="Confirmer">
                                                     <i class="fas fa-check"></i>
                                                 </button>
                                             }
                                             @if (rdv.Statut != "Annulé" && rdv.Statut != "Terminé")
                                             {
-                                                <button class="btn btn-outline-danger btn-cancel" data-id="@rdv.NumCom" title="Annuler">
+                                                <button class="btn btn-outline-danger btn-cancel"
+                                                        data-id="@rdv.NumCom" title="Annuler">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             }
-                                            <a asp-action="Delete" asp-route-id="@rdv.NumCom" class="btn btn-outline-danger" title="Supprimer">
+                                            <a asp-action="Delete" asp-route-id="@rdv.NumCom"
+                                               class="btn btn-outline-danger" title="Supprimer">
                                                 <i class="fas fa-trash"></i>
                                             </a>
                                         }
@@ -181,38 +389,74 @@
             </table>
         </div>
 
-        @if (ViewBag.TotalPages > 1)
+        <!-- Pagination avec vue partielle -->
+        @if (Model.RendezVous.TotalCount > 0)
         {
-            <div class="card-footer">
-                <nav>
-                    <ul class="pagination justify-content-center mb-0">
-                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            <div class="card-footer bg-white">
+                @await Html.PartialAsync("_Pagination", new PaginationPartialViewModel
+                {
+                    CurrentPage = Model.RendezVous.CurrentPage,
+                        TotalPages = Model.RendezVous.TotalPages,
+                        PageSize = Model.PageSize,
+                        TotalCount = Model.RendezVous.TotalCount,
+                        ActionName = "Index",
+                        FormId = "pageSizeFormRdv",
+                        RouteValues = new Dictionary<string, string?>
                         {
-                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-action="Index" asp-route-page="@i"
-                                   asp-route-search="@ViewBag.CurrentSearch" asp-route-statut="@ViewBag.CurrentStatut">@i</a>
-                            </li>
+                        { "searchTerm", Model.SearchTerm },
+                        { "statut", Model.Statut },
+                        { "periode", Model.Periode },
+                        { "dateDebut", Model.DateDebut?.ToString("yyyy-MM-dd") },
+                        { "dateFin", Model.DateFin?.ToString("yyyy-MM-dd") },
+                        { "medecinId", Model.MedecinId?.ToString() },
+                        { "sortBy", Model.SortBy },
+                        { "sortOrder", Model.SortOrder }
                         }
-                    </ul>
-                </nav>
-            </div>
-        }
+                        })
+        </div>
+                }
     </div>
 </div>
 
 @section Scripts {
     <script>
         $(document).ready(function() {
+            // Auto-submit sur changement de filtre
+            $('select[name="statut"], select[name="periode"], select[name="medecinId"], select[name="sortBy"], select[name="sortOrder"]').change(function() {
+                $('#filterForm').submit();
+            });
+
+            // Confirmer RDV
             $('.btn-confirm').click(function() {
                 var id = $(this).data('id');
                 if (confirm('Confirmer ce rendez-vous ?')) {
-                    $.post('/RendezVous/ConfirmRdv/' + id, function(r) { if (r.success) location.reload(); });
+                    $.post('/RendezVous/ConfirmRdv/' + id, function(response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert(response.message || 'Erreur lors de la confirmation');
+                        }
+                    }).fail(function() {
+                        alert('Erreur de communication avec le serveur');
+                    });
                 }
             });
+
+            // Annuler RDV
             $('.btn-cancel').click(function() {
                 var id = $(this).data('id');
-                var raison = prompt('Raison (optionnel):');
-                $.post('/RendezVous/CancelRdv/' + id + '?raison=' + encodeURIComponent(raison || ''), function(r) { if (r.success) location.reload(); });
+                var raison = prompt('Raison de l\'annulation (optionnel):');
+                if (raison !== null) {
+                    $.post('/RendezVous/CancelRdv/' + id + '?raison=' + encodeURIComponent(raison || ''), function(response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert(response.message || 'Erreur lors de l\'annulation');
+                        }
+                    }).fail(function() {
+                        alert('Erreur de communication avec le serveur');
+                    });
+                }
             });
         });
     </script>

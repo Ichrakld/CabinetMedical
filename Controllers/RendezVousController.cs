@@ -1,4 +1,5 @@
 ﻿using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using GestionCabinetMedical.Helpers;
 using GestionCabinetMedical.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -6,10 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ClosedXML.Excel;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Security.Claims;
 
 namespace GestionCabinetMedical.Controllers
@@ -20,7 +17,6 @@ namespace GestionCabinetMedical.Controllers
         private readonly BdCabinetMedicalContext _context;
         private readonly ICrudNotificationHelper _notificationHelper;
         private readonly INotificationService _notificationService;
-        private const int PageSize = 10;
 
         public RendezVousController(
             BdCabinetMedicalContext context,
@@ -54,15 +50,17 @@ namespace GestionCabinetMedical.Controllers
         // ============================================================
         private bool IsPatient()
         {
-            return User.IsInRole("PATIENT") && !User.IsInRole("ADMIN") && !User.IsInRole("MEDECIN") && !User.IsInRole("SECRETAIRE");
+            return User.IsInRole("PATIENT") && !User.IsInRole("ADMIN") &&
+                   !User.IsInRole("MEDECIN") && !User.IsInRole("SECRETAIRE");
         }
 
         // ============================================================
         // Helper : Vérifier conflit de RDV
         // ============================================================
-        private async Task<(bool hasConflict, string message)> CheckRdvConflictAsync(int medecinId, int patientId, DateTime dateHeure, int? excludeRdvId = null)
+        private async Task<(bool hasConflict, string message)> CheckRdvConflictAsync(
+            int medecinId, int patientId, DateTime dateHeure, int? excludeRdvId = null)
         {
-            // Définir une plage de tolérance (par exemple, 30 minutes avant/après)
+
             var startTime = dateHeure.AddMinutes(-29);
             var endTime = dateHeure.AddMinutes(29);
 
@@ -79,7 +77,7 @@ namespace GestionCabinetMedical.Controllers
             if (medecinConflict != null)
             {
                 var patientNom = $"{medecinConflict.Patient?.IdNavigation?.Nom} {medecinConflict.Patient?.IdNavigation?.Prenom}";
-                return (true, $"Le médecin a déjà un rendez-vous à {medecinConflict.DateHeure:HH:mm} avec {patientNom}. Veuillez choisir un autre créneau.");
+                return (true, $"Le médecin a déjà un rendez-vous à {medecinConflict.DateHeure:HH:mm} avec {patientNom}.");
             }
 
             // Vérifier conflit pour le patient
@@ -95,41 +93,73 @@ namespace GestionCabinetMedical.Controllers
             if (patientConflict != null)
             {
                 var medecinNom = $"Dr. {patientConflict.Medecin?.IdNavigation?.Nom}";
-                return (true, $"Le patient a déjà un rendez-vous à {patientConflict.DateHeure:HH:mm} avec {medecinNom}. Veuillez choisir un autre créneau.");
+                return (true, $"Le patient a déjà un rendez-vous à {patientConflict.DateHeure:HH:mm} avec {medecinNom}.");
             }
 
             return (false, string.Empty);
         }
 
         // ============================================================
-        // GET: RendezVous avec filtres et pagination
-        // RESTRICTION: Les patients ne voient que leurs propres RDV
+        // GET: RendezVous - Index avec pagination
         // ============================================================
         public async Task<IActionResult> Index(
-            string? search,
+            string? searchTerm,
             string? statut,
-            string? dateDebut,
-            string? dateFin,
-            int? medecinId,
             string? periode,
-            string? sortBy,
-            string? sortOrder,
-            int page = 1)
+            DateTime? dateDebut,
+            DateTime? dateFin,
+            int? medecinId,
+            string sortBy = "date",
+            string sortOrder = "asc",
+            int page = 1,
+            int pageSize = 10)
         {
+            // ========== RESTRICTION PATIENT ==========
+            var isPatient = IsPatient();
+            var currentUserId = 0;
+
+            if (isPatient)
+            {
+                currentUserId = await GetCurrentUserIdAsync();
+            }
+
+            // ========== QUERY DE BASE ==========
             var query = _context.RendezVous
-                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
                 .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
+                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
                 .AsQueryable();
 
-            // ========== RESTRICTION PATIENT ==========
-            if (IsPatient())
+            // Restriction pour les patients
+            if (isPatient)
             {
-                var currentUserId = await GetCurrentUserIdAsync();
                 query = query.Where(r => r.PatientId == currentUserId);
             }
 
-            // Filtre par période rapide
+            // ============================================================
+            // Calcul des statistiques (avant filtres)
+            // ============================================================
             var today = DateTime.Today;
+            var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+            var endOfWeek = startOfWeek.AddDays(7);
+
+            var allRdvForStats = isPatient
+                ? await _context.RendezVous.Where(r => r.PatientId == currentUserId).ToListAsync()
+                : await _context.RendezVous.ToListAsync();
+
+            var stats = new
+            {
+                Total = allRdvForStats.Count,
+                Aujourdhui = allRdvForStats.Count(r => r.DateHeure.Date == today),
+                EnAttente = allRdvForStats.Count(r => r.Statut == "En attente"),
+                Confirmes = allRdvForStats.Count(r => r.Statut == "Confirmé"),
+                Annules = allRdvForStats.Count(r => r.Statut == "Annulé"),
+                Termines = allRdvForStats.Count(r => r.Statut == "Terminé"),
+                CetteSemaine = allRdvForStats.Count(r => r.DateHeure >= startOfWeek && r.DateHeure < endOfWeek)
+            };
+
+            // ============================================================
+            // Filtre par période rapide
+            // ============================================================
             if (!string.IsNullOrEmpty(periode))
             {
                 switch (periode)
@@ -138,8 +168,6 @@ namespace GestionCabinetMedical.Controllers
                         query = query.Where(r => r.DateHeure.Date == today);
                         break;
                     case "semaine":
-                        var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
-                        var endOfWeek = startOfWeek.AddDays(7);
                         query = query.Where(r => r.DateHeure >= startOfWeek && r.DateHeure < endOfWeek);
                         break;
                     case "mois":
@@ -150,15 +178,23 @@ namespace GestionCabinetMedical.Controllers
                 }
             }
 
-            // Filtre par recherche textuelle
-            if (!string.IsNullOrEmpty(search))
+            // ============================================================
+            // Filtres
+            // ============================================================
+
+            // Recherche textuelle
+            if (!string.IsNullOrEmpty(searchTerm))
             {
-                search = search.ToLower();
+                var search = searchTerm.ToLower();
                 query = query.Where(r =>
-                    r.Patient.IdNavigation.Nom.ToLower().Contains(search) ||
-                    r.Patient.IdNavigation.Prenom.ToLower().Contains(search) ||
-                    r.Medecin.IdNavigation.Nom.ToLower().Contains(search) ||
-                    r.Medecin.IdNavigation.Prenom.ToLower().Contains(search));
+                    (r.Patient != null && r.Patient.IdNavigation != null &&
+                        (r.Patient.IdNavigation.Nom!.ToLower().Contains(search) ||
+                         r.Patient.IdNavigation.Prenom!.ToLower().Contains(search))) ||
+                    (r.Medecin != null && r.Medecin.IdNavigation != null &&
+                        (r.Medecin.IdNavigation.Nom!.ToLower().Contains(search) ||
+                         r.Medecin.IdNavigation.Prenom!.ToLower().Contains(search))) ||
+                    (r.Motif != null && r.Motif.ToLower().Contains(search))
+                );
             }
 
             // Filtre par statut
@@ -167,16 +203,16 @@ namespace GestionCabinetMedical.Controllers
                 query = query.Where(r => r.Statut == statut);
             }
 
-            // Filtre par date début
-            if (!string.IsNullOrEmpty(dateDebut) && DateTime.TryParse(dateDebut, out var dateD))
+            // Filtre par date de début
+            if (dateDebut.HasValue)
             {
-                query = query.Where(r => r.DateHeure.Date >= dateD);
+                query = query.Where(r => r.DateHeure.Date >= dateDebut.Value.Date);
             }
 
-            // Filtre par date fin
-            if (!string.IsNullOrEmpty(dateFin) && DateTime.TryParse(dateFin, out var dateF))
+            // Filtre par date de fin
+            if (dateFin.HasValue)
             {
-                query = query.Where(r => r.DateHeure.Date <= dateF);
+                query = query.Where(r => r.DateHeure.Date <= dateFin.Value.Date);
             }
 
             // Filtre par médecin
@@ -185,68 +221,83 @@ namespace GestionCabinetMedical.Controllers
                 query = query.Where(r => r.MedecinId == medecinId.Value);
             }
 
+            // ============================================================
             // Tri
-            sortOrder ??= "asc";
-            query = sortBy switch
+            // ============================================================
+            query = (sortBy, sortOrder) switch
             {
-                "date" => sortOrder == "asc"
-                    ? query.OrderBy(r => r.DateHeure)
-                    : query.OrderByDescending(r => r.DateHeure),
-                "patient" => sortOrder == "asc"
-                    ? query.OrderBy(r => r.Patient.IdNavigation.Nom)
-                    : query.OrderByDescending(r => r.Patient.IdNavigation.Nom),
-                "medecin" => sortOrder == "asc"
-                    ? query.OrderBy(r => r.Medecin.IdNavigation.Nom)
-                    : query.OrderByDescending(r => r.Medecin.IdNavigation.Nom),
+                ("date", "asc") => query.OrderBy(r => r.DateHeure),
+                ("date", "desc") => query.OrderByDescending(r => r.DateHeure),
+                ("patient", "asc") => query.OrderBy(r => r.Patient!.IdNavigation!.Nom),
+                ("patient", "desc") => query.OrderByDescending(r => r.Patient!.IdNavigation!.Nom),
+                ("medecin", "asc") => query.OrderBy(r => r.Medecin!.IdNavigation!.Nom),
+                ("medecin", "desc") => query.OrderByDescending(r => r.Medecin!.IdNavigation!.Nom),
+                ("statut", "asc") => query.OrderBy(r => r.Statut),
+                ("statut", "desc") => query.OrderByDescending(r => r.Statut),
                 _ => query.OrderBy(r => r.DateHeure)
             };
 
+            // ============================================================
             // Pagination
-            var totalItems = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalItems / (double)PageSize);
-            page = Math.Max(1, Math.Min(page, Math.Max(1, totalPages)));
+            // ============================================================
+            var paginatedList = await PaginatedList<RendezVou>.CreateAsync(query, page, pageSize);
 
-            var items = await query
-                .Skip((page - 1) * PageSize)
-                .Take(PageSize)
+            // ============================================================
+            // Liste des médecins pour le filtre
+            // ============================================================
+            var medecins = await _context.Medecins
+                .Include(m => m.IdNavigation)
+                .Where(m => m.IdNavigation != null)
+                .Select(m => new MedecinSelectItem
+                {
+                    Id = m.Id,
+                    Nom = m.IdNavigation!.Nom ?? "",
+                    Specialite = m.Specialite ?? ""
+                })
+                .OrderBy(m => m.Nom)
                 .ToListAsync();
 
-            // ViewBag pour conserver les filtres
-            ViewBag.CurrentSearch = search;
-            ViewBag.CurrentStatut = statut;
-            ViewBag.DateDebut = dateDebut;
-            ViewBag.DateFin = dateFin;
-            ViewBag.Periode = periode;
-            ViewBag.SortBy = sortBy;
-            ViewBag.SortOrder = sortOrder;
-            ViewBag.CurrentPage = page;
-            ViewBag.TotalPages = totalPages;
-            ViewBag.IsPatient = IsPatient();
+            // ============================================================
+            // ViewModel
+            // ============================================================
+            var viewModel = new RendezVousIndexViewModel
+            {
+                RendezVous = paginatedList,
+                SearchTerm = searchTerm,
+                Statut = statut,
+                Periode = periode,
+                DateDebut = dateDebut,
+                DateFin = dateFin,
+                MedecinId = medecinId,
+                SortBy = sortBy,
+                SortOrder = sortOrder,
+                PageSize = pageSize,
+                IsPatient = isPatient,
+                Medecins = medecins,
 
-            // Liste des médecins pour le filtre
-            ViewBag.Medecins = new SelectList(
-                await _context.Medecins
-                    .Include(m => m.IdNavigation)
-                    .Select(m => new { m.Id, Nom = "Dr. " + m.IdNavigation.Nom })
-                    .ToListAsync(),
-                "Id", "Nom", medecinId);
+                // Statistiques
+                TotalRendezVous = stats.Total,
+                RendezVousAujourdHui = stats.Aujourdhui,
+                RendezVousEnAttente = stats.EnAttente,
+                RendezVousConfirmes = stats.Confirmes,
+                RendezVousAnnules = stats.Annules,
+                RendezVousTermines = stats.Termines,
+                RendezVousCetteSemaine = stats.CetteSemaine
+            };
 
-            return View(items);
+            return View(viewModel);
         }
 
         // ============================================================
         // GET: RendezVous/Details/5
-        // RESTRICTION: Les patients ne peuvent voir que leurs propres RDV
         // ============================================================
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
 
             var rendezVou = await _context.RendezVous
-                .Include(r => r.Medecin)
-                    .ThenInclude(m => m.IdNavigation)
-                .Include(r => r.Patient)
-                    .ThenInclude(p => p.IdNavigation)
+                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
+                .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
                 .FirstOrDefaultAsync(m => m.NumCom == id);
 
             if (rendezVou == null) return NotFound();
@@ -256,9 +307,7 @@ namespace GestionCabinetMedical.Controllers
             {
                 var currentUserId = await GetCurrentUserIdAsync();
                 if (rendezVou.PatientId != currentUserId)
-                {
                     return Forbid();
-                }
             }
 
             return View(rendezVou);
@@ -275,7 +324,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // POST: RendezVous/Create - AVEC VALIDATION CONFLIT
+        // POST: RendezVous/Create
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -287,11 +336,11 @@ namespace GestionCabinetMedical.Controllers
 
             if (rendezVou.DateHeure <= DateTime.Now)
             {
-                ModelState.AddModelError("DateHeure", "La date et l'heure du rendez-vous doivent être supérieures à maintenant.");
+                ModelState.AddModelError("DateHeure", "La date et l'heure doivent être supérieures à maintenant.");
             }
 
-            // Vérifier les conflits de RDV
-            var (hasConflict, conflictMessage) = await CheckRdvConflictAsync(rendezVou.MedecinId, rendezVou.PatientId, rendezVou.DateHeure);
+            var (hasConflict, conflictMessage) = await CheckRdvConflictAsync(
+                rendezVou.MedecinId, rendezVou.PatientId, rendezVou.DateHeure);
             if (hasConflict)
             {
                 ModelState.AddModelError("DateHeure", conflictMessage);
@@ -316,17 +365,16 @@ namespace GestionCabinetMedical.Controllers
                         var medecinNom = $"Dr. {rdvComplet.Medecin?.IdNavigation?.Nom}";
                         var dateRdv = rdvComplet.DateHeure.ToString("dd/MM/yyyy à HH:mm");
 
-                        // Notification pour le patient
-                        var messagePatient = $"Nouveau rendez-vous programmé le {dateRdv} avec {medecinNom}";
                         await _notificationService.CreateNotificationAsync(
-                            rdvComplet.NumCom, "Confirmation", messagePatient, rdvComplet.PatientId);
+                            rdvComplet.NumCom, "Confirmation",
+                            $"Nouveau rendez-vous programmé le {dateRdv} avec {medecinNom}",
+                            rdvComplet.PatientId);
 
-                        // Notification pour le médecin
-                        var messageMedecin = $"Nouveau rendez-vous programmé le {dateRdv} avec {patientNom}";
                         await _notificationService.CreateNotificationAsync(
-                            rdvComplet.NumCom, "Confirmation", messageMedecin, rdvComplet.MedecinId);
+                            rdvComplet.NumCom, "Confirmation",
+                            $"Nouveau rendez-vous programmé le {dateRdv} avec {patientNom}",
+                            rdvComplet.MedecinId);
 
-                        // Notification pour l'utilisateur connecté
                         var currentUserId = await GetCurrentUserIdAsync();
                         if (currentUserId > 0)
                         {
@@ -369,7 +417,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // POST: RendezVous/Edit/5 - AVEC VALIDATION CONFLIT
+        // POST: RendezVous/Edit/5
         // ============================================================
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -383,11 +431,11 @@ namespace GestionCabinetMedical.Controllers
 
             if (rendezVou.DateHeure <= DateTime.Now && rendezVou.Statut != "Terminé" && rendezVou.Statut != "Annulé")
             {
-                ModelState.AddModelError("DateHeure", "La date et l'heure du rendez-vous doivent être supérieures à maintenant.");
+                ModelState.AddModelError("DateHeure", "La date et l'heure doivent être supérieures à maintenant.");
             }
 
-            // Vérifier les conflits (en excluant le RDV actuel)
-            var (hasConflict, conflictMessage) = await CheckRdvConflictAsync(rendezVou.MedecinId, rendezVou.PatientId, rendezVou.DateHeure, id);
+            var (hasConflict, conflictMessage) = await CheckRdvConflictAsync(
+                rendezVou.MedecinId, rendezVou.PatientId, rendezVou.DateHeure, id);
             if (hasConflict)
             {
                 ModelState.AddModelError("DateHeure", conflictMessage);
@@ -413,42 +461,26 @@ namespace GestionCabinetMedical.Controllers
                     if (rdvComplet != null)
                     {
                         var dateRdv = rdvComplet.DateHeure.ToString("dd/MM/yyyy à HH:mm");
-                        var patientNom = $"{rdvComplet.Patient?.IdNavigation?.Nom} {rdvComplet.Patient?.IdNavigation?.Prenom}";
-                        var medecinNom = $"Dr. {rdvComplet.Medecin?.IdNavigation?.Nom}";
 
                         if (ancienRdv != null && ancienRdv.Statut != rendezVou.Statut)
                         {
-                            if (rendezVou.Statut == "Annulé")
-                            {
-                                var msgAnnulation = $"Le rendez-vous du {dateRdv} a été annulé";
-                                await _notificationService.CreateNotificationAsync(
-                                    rdvComplet.NumCom, "Annulation", msgAnnulation, rdvComplet.PatientId);
-                                await _notificationService.CreateNotificationAsync(
-                                    rdvComplet.NumCom, "Annulation", msgAnnulation, rdvComplet.MedecinId);
-                            }
-                            else if (rendezVou.Statut == "Confirmé")
-                            {
-                                var msgConfirm = $"Le rendez-vous du {dateRdv} a été confirmé";
-                                await _notificationService.CreateNotificationAsync(
-                                    rdvComplet.NumCom, "Confirmation", msgConfirm, rdvComplet.PatientId);
-                                await _notificationService.CreateNotificationAsync(
-                                    rdvComplet.NumCom, "Confirmation", msgConfirm, rdvComplet.MedecinId);
-                            }
+                            var msgType = rendezVou.Statut == "Annulé" ? "Annulation" : "Confirmation";
+                            var msg = $"Le rendez-vous du {dateRdv} a été {(rendezVou.Statut == "Annulé" ? "annulé" : rendezVou.Statut == "Confirmé" ? "confirmé" : "modifié")}";
+
+                            await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, msgType, msg, rdvComplet.PatientId);
+                            await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, msgType, msg, rdvComplet.MedecinId);
                         }
                         else
                         {
                             var msgModif = $"Le rendez-vous du {dateRdv} a été modifié";
-                            await _notificationService.CreateNotificationAsync(
-                                rdvComplet.NumCom, "Confirmation", msgModif, rdvComplet.PatientId);
-                            await _notificationService.CreateNotificationAsync(
-                                rdvComplet.NumCom, "Confirmation", msgModif, rdvComplet.MedecinId);
+                            await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, "Confirmation", msgModif, rdvComplet.PatientId);
+                            await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, "Confirmation", msgModif, rdvComplet.MedecinId);
                         }
 
                         var currentUserId = await GetCurrentUserIdAsync();
                         if (currentUserId > 0)
                         {
-                            await _notificationHelper.NotifyUpdateSuccessAsync(
-                                "Rendez-vous", $"RDV #{rdvComplet.NumCom} modifié", currentUserId);
+                            await _notificationHelper.NotifyUpdateSuccessAsync("Rendez-vous", $"RDV #{rdvComplet.NumCom} modifié", currentUserId);
                         }
                     }
 
@@ -457,7 +489,7 @@ namespace GestionCabinetMedical.Controllers
                 catch (DbUpdateConcurrencyException)
                 {
                     if (!RendezVouExists(rendezVou.NumCom)) return NotFound();
-                    else throw;
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -469,6 +501,7 @@ namespace GestionCabinetMedical.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+
             PopulateDropdowns(rendezVou.MedecinId, rendezVou.PatientId);
             return View(rendezVou);
         }
@@ -482,10 +515,8 @@ namespace GestionCabinetMedical.Controllers
             if (id == null) return NotFound();
 
             var rendezVou = await _context.RendezVous
-                .Include(r => r.Medecin)
-                    .ThenInclude(m => m.IdNavigation)
-                .Include(r => r.Patient)
-                    .ThenInclude(p => p.IdNavigation)
+                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
+                .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
                 .FirstOrDefaultAsync(m => m.NumCom == id);
 
             if (rendezVou == null) return NotFound();
@@ -494,7 +525,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // POST: RendezVous/Delete/5 - AVEC NOTIFICATIONS
+        // POST: RendezVous/Delete/5
         // ============================================================
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
@@ -521,7 +552,7 @@ namespace GestionCabinetMedical.Controllers
                 _context.RendezVous.Remove(rendezVou);
                 await _context.SaveChangesAsync();
 
-                // ====== NOTIFICATIONS ======
+                // Notifications
                 var msgSuppression = $"Le rendez-vous du {dateRdv} a été supprimé";
                 await _notificationService.CreateNotificationAsync(null, "Annulation", msgSuppression, patientId);
                 await _notificationService.CreateNotificationAsync(null, "Annulation", msgSuppression, medecinId);
@@ -539,7 +570,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // POST: RendezVous/ConfirmRdv/5 (AJAX)
+        // POST: ConfirmRdv (AJAX)
         // ============================================================
         [HttpPost]
         [Authorize(Roles = "ADMIN,MEDECIN,SECRETAIRE")]
@@ -567,7 +598,7 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
-        // POST: RendezVous/CancelRdv/5 (AJAX)
+        // POST: CancelRdv (AJAX)
         // ============================================================
         [HttpPost]
         [Authorize(Roles = "ADMIN,MEDECIN,SECRETAIRE")]
@@ -596,6 +627,23 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // ============================================================
+        // POST: TerminerRdv (AJAX)
+        // ============================================================
+        [HttpPost]
+        [Authorize(Roles = "ADMIN,MEDECIN,SECRETAIRE")]
+        public async Task<IActionResult> TerminerRdv(int id)
+        {
+            var rdv = await _context.RendezVous.FindAsync(id);
+            if (rdv != null)
+            {
+                rdv.Statut = "Terminé";
+                await _context.SaveChangesAsync();
+                return Json(new { success = true, message = "Rendez-vous terminé" });
+            }
+            return Json(new { success = false, message = "Rendez-vous non trouvé" });
+        }
+
+        // ============================================================
         // AJAX: Vérifier conflit de RDV
         // ============================================================
         [HttpPost]
@@ -605,22 +653,102 @@ namespace GestionCabinetMedical.Controllers
             return Json(new { hasConflict, message });
         }
 
-        private bool RendezVouExists(int id)
+        // ============================================================
+        // GET: Calendrier
+        // ============================================================
+        public async Task<IActionResult> Calendrier()
         {
-            return _context.RendezVous.Any(e => e.NumCom == id);
+            ViewBag.Medecins = await _context.Medecins
+                .Include(m => m.IdNavigation)
+                .Select(m => new { m.Id, Nom = "Dr. " + m.IdNavigation.Nom })
+                .ToListAsync();
+
+            ViewBag.IsPatient = IsPatient();
+            return View();
         }
 
         // ============================================================
-        // GET: RendezVous/ExportExcel
+        // GET: GetCalendarEvents (AJAX pour FullCalendar)
+        // ============================================================
+        [HttpGet]
+        public async Task<IActionResult> GetCalendarEvents(string start, string end, int? medecinId = null, string? status = null)
+        {
+            if (!DateTime.TryParse(start, out var startDate))
+                startDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+
+            if (!DateTime.TryParse(end, out var endDate))
+                endDate = startDate.AddMonths(2);
+
+            var query = _context.RendezVous
+                .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
+                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
+                .Where(r => r.DateHeure >= startDate && r.DateHeure <= endDate);
+
+            if (IsPatient())
+            {
+                var currentUserId = await GetCurrentUserIdAsync();
+                query = query.Where(r => r.PatientId == currentUserId);
+            }
+
+            if (medecinId.HasValue)
+                query = query.Where(r => r.MedecinId == medecinId.Value);
+
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(r => r.Statut == status);
+
+            var rendezVous = await query.ToListAsync();
+
+            var events = rendezVous.Select(r => new
+            {
+                id = r.NumCom,
+                title = $"{r.Patient?.IdNavigation?.Nom} {r.Patient?.IdNavigation?.Prenom?.Substring(0, Math.Min(1, r.Patient?.IdNavigation?.Prenom?.Length ?? 0))}.",
+                start = r.DateHeure.ToString("yyyy-MM-ddTHH:mm:ss"),
+                end = r.DateHeure.AddMinutes(30).ToString("yyyy-MM-ddTHH:mm:ss"),
+                color = GetStatusColor(r.Statut),
+                borderColor = GetStatusBorderColor(r.Statut),
+                textColor = r.Statut == "En attente" ? "#000" : "#fff",
+                extendedProps = new
+                {
+                    patient = $"{r.Patient?.IdNavigation?.Nom} {r.Patient?.IdNavigation?.Prenom}",
+                    medecin = $"Dr. {r.Medecin?.IdNavigation?.Nom} {r.Medecin?.IdNavigation?.Prenom}",
+                    specialite = r.Medecin?.Specialite ?? "",
+                    statut = r.Statut ?? "En attente",
+                    motif = r.Motif ?? "Non spécifié"
+                }
+            }).ToList();
+
+            return Json(events);
+        }
+
+        private string GetStatusColor(string? statut) => statut switch
+        {
+            "Confirmé" => "#28a745",
+            "En attente" => "#ffc107",
+            "Annulé" => "#dc3545",
+            "Terminé" => "#17a2b8",
+            _ => "#6c757d"
+        };
+
+        private string GetStatusBorderColor(string? statut) => statut switch
+        {
+            "Confirmé" => "#1e7b34",
+            "En attente" => "#d39e00",
+            "Annulé" => "#bd2130",
+            "Terminé" => "#117a8b",
+            _ => "#545b62"
+        };
+
+        // ============================================================
+        // GET: ExportExcel
         // ============================================================
         [Authorize(Roles = "ADMIN,MEDECIN,SECRETAIRE")]
         public async Task<IActionResult> ExportExcel(
-            string? search,
+            string? searchTerm,
             string? statut,
-            string? dateDebut,
-            string? dateFin,
-            int? medecinId,
-            string? periode)
+            string? periode,
+            DateTime? dateDebut,
+            DateTime? dateFin,
+            int? medecinId)
         {
             var query = _context.RendezVous
                 .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
@@ -628,6 +756,7 @@ namespace GestionCabinetMedical.Controllers
                 .AsQueryable();
 
             var today = DateTime.Today;
+
             if (!string.IsNullOrEmpty(periode))
             {
                 switch (periode)
@@ -648,9 +777,9 @@ namespace GestionCabinetMedical.Controllers
                 }
             }
 
-            if (!string.IsNullOrEmpty(search))
+            if (!string.IsNullOrEmpty(searchTerm))
             {
-                search = search.ToLower();
+                var search = searchTerm.ToLower();
                 query = query.Where(r =>
                     r.Patient.IdNavigation.Nom.ToLower().Contains(search) ||
                     r.Patient.IdNavigation.Prenom.ToLower().Contains(search) ||
@@ -660,11 +789,11 @@ namespace GestionCabinetMedical.Controllers
             if (!string.IsNullOrEmpty(statut))
                 query = query.Where(r => r.Statut == statut);
 
-            if (!string.IsNullOrEmpty(dateDebut) && DateTime.TryParse(dateDebut, out var dateD))
-                query = query.Where(r => r.DateHeure.Date >= dateD);
+            if (dateDebut.HasValue)
+                query = query.Where(r => r.DateHeure.Date >= dateDebut.Value.Date);
 
-            if (!string.IsNullOrEmpty(dateFin) && DateTime.TryParse(dateFin, out var dateF))
-                query = query.Where(r => r.DateHeure.Date <= dateF);
+            if (dateFin.HasValue)
+                query = query.Where(r => r.DateHeure.Date <= dateFin.Value.Date);
 
             if (medecinId.HasValue)
                 query = query.Where(r => r.MedecinId == medecinId.Value);
@@ -684,19 +813,17 @@ namespace GestionCabinetMedical.Controllers
             worksheet.Range(2, 1, 2, 6).Merge();
 
             var headerRow = 4;
-            worksheet.Cell(headerRow, 1).Value = "N° RDV";
-            worksheet.Cell(headerRow, 2).Value = "Date & Heure";
-            worksheet.Cell(headerRow, 3).Value = "Patient";
-            worksheet.Cell(headerRow, 4).Value = "Médecin";
-            worksheet.Cell(headerRow, 5).Value = "Spécialité";
-            worksheet.Cell(headerRow, 6).Value = "Statut";
+            var headers = new[] { "N° RDV", "Date & Heure", "Patient", "Médecin", "Spécialité", "Statut" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                worksheet.Cell(headerRow, i + 1).Value = headers[i];
+            }
 
             var headerRange = worksheet.Range(headerRow, 1, headerRow, 6);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#667eea");
             headerRange.Style.Font.FontColor = XLColor.White;
             headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
 
             var currentRow = headerRow + 1;
             foreach (var rdv in rdvs)
@@ -704,13 +831,11 @@ namespace GestionCabinetMedical.Controllers
                 worksheet.Cell(currentRow, 1).Value = rdv.NumCom;
                 worksheet.Cell(currentRow, 2).Value = rdv.DateHeure.ToString("dd/MM/yyyy HH:mm");
                 worksheet.Cell(currentRow, 3).Value = $"{rdv.Patient?.IdNavigation?.Nom} {rdv.Patient?.IdNavigation?.Prenom}";
-                worksheet.Cell(currentRow, 4).Value = $"Dr. {rdv.Medecin?.IdNavigation?.Nom} {rdv.Medecin?.IdNavigation?.Prenom}";
+                worksheet.Cell(currentRow, 4).Value = $"Dr. {rdv.Medecin?.IdNavigation?.Nom}";
                 worksheet.Cell(currentRow, 5).Value = rdv.Medecin?.Specialite ?? "-";
                 worksheet.Cell(currentRow, 6).Value = rdv.Statut;
 
-                var statutCell = worksheet.Cell(currentRow, 6);
-                statutCell.Style.Font.Bold = true;
-                statutCell.Style.Fill.BackgroundColor = rdv.Statut switch
+                worksheet.Cell(currentRow, 6).Style.Fill.BackgroundColor = rdv.Statut switch
                 {
                     "Confirmé" => XLColor.FromHtml("#d4edda"),
                     "En attente" => XLColor.FromHtml("#fff3cd"),
@@ -718,8 +843,6 @@ namespace GestionCabinetMedical.Controllers
                     "Terminé" => XLColor.FromHtml("#d1ecf1"),
                     _ => XLColor.White
                 };
-
-                worksheet.Range(currentRow, 1, currentRow, 6).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 currentRow++;
             }
 
@@ -741,155 +864,23 @@ namespace GestionCabinetMedical.Controllers
             workbook.SaveAs(stream);
             stream.Position = 0;
 
-            var fileName = $"RendezVous_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
             return File(stream.ToArray(),
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                fileName);
-        }
-        //public IActionResult Calendrier()
-        //{
-        //    return View();
-        //}
-        // ============================================================
-        // GET: RendezVous/Calendrier
-        // ============================================================
-        public async Task<IActionResult> Calendrier()
-        {
-            ViewBag.Medecins = await _context.Medecins
-                .Include(m => m.IdNavigation)
-                .Select(m => new { m.Id, Nom = "Dr. " + m.IdNavigation.Nom })
-                .ToListAsync();
-
-            ViewBag.IsPatient = IsPatient();
-
-            return View();
+                $"RendezVous_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         }
 
-       
-        // ============================================================
-        // GET: RendezVous/GetCalendarEvents (AJAX pour FullCalendar)
-        // RESTRICTION: Les patients ne voient que leurs propres RDV
-        // ============================================================
-        [HttpGet]
-        public async Task<IActionResult> GetCalendarEvents(
-            string start,      // Format ISO string
-            string end,        // Format ISO string
-            int? medecinId = null,
-            string? status = null)
-        {
-            // Parser les dates (FullCalendar envoie des strings ISO)
-            if (!DateTime.TryParse(start, out var startDate))
-                startDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-
-            if (!DateTime.TryParse(end, out var endDate))
-                endDate = startDate.AddMonths(2);
-
-            var query = _context.RendezVous
-                .Include(r => r.Patient).ThenInclude(p => p.IdNavigation)
-                .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
-                .Where(r => r.DateHeure >= startDate && r.DateHeure <= endDate);
-
-            // ========== RESTRICTION PATIENT ==========
-            if (IsPatient())
-            {
-                var currentUserId = await GetCurrentUserIdAsync();
-                query = query.Where(r => r.PatientId == currentUserId);
-            }
-
-            // Filtre par médecin
-            if (medecinId.HasValue)
-                query = query.Where(r => r.MedecinId == medecinId.Value);
-
-            // Filtre par statut
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(r => r.Statut == status);
-
-            try
-            {
-                var rendezVous = await query.ToListAsync();
-
-                // Transformer en format FullCalendar
-                var events = rendezVous.Select(r =>
-                {
-                    var startRdv = r.DateHeure;
-                    var endRdv = startRdv.AddMinutes(30); // Durée par défaut 30 min
-
-                    return new
-                    {
-                        id = r.NumCom,
-                        title = $"{r.Patient?.IdNavigation?.Nom} {r.Patient?.IdNavigation?.Prenom?.Substring(0, Math.Min(1, r.Patient?.IdNavigation?.Prenom?.Length ?? 0))}.",
-                        start = startRdv.ToString("yyyy-MM-ddTHH:mm:ss"),
-                        end = endRdv.ToString("yyyy-MM-ddTHH:mm:ss"),
-                        color = GetStatusColor(r.Statut),
-                        borderColor = GetStatusBorderColor(r.Statut),
-                        textColor = r.Statut == "En attente" ? "#000" : "#fff",
-                        extendedProps = new
-                        {
-                            patient = $"{r.Patient?.IdNavigation?.Nom} {r.Patient?.IdNavigation?.Prenom}",
-                            medecin = $"Dr. {r.Medecin?.IdNavigation?.Nom} {r.Medecin?.IdNavigation?.Prenom}",
-                            specialite = r.Medecin?.Specialite ?? "",
-                            statut = r.Statut ?? "En attente",
-                            patientId = r.PatientId,
-                            medecinId = r.MedecinId,
-                            motif = r.Motif ?? "Non spécifié"
-                        }
-                    };
-                }).ToList();
-
-                Console.WriteLine($"✅ GetCalendarEvents: {events.Count} événements trouvés entre {startDate:dd/MM/yyyy} et {endDate:dd/MM/yyyy}");
-
-                return Json(events);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Erreur GetCalendarEvents: {ex.Message}");
-                return Json(new List<object>());
-            }
-        }
-
-
-        // Helper pour la couleur selon le statut
-        private string GetStatusColor(string? statut)
-        {
-            return statut switch
-            {
-                "Confirmé" => "#28a745",
-                "En attente" => "#ffc107",
-                "Annulé" => "#dc3545",
-                "Terminé" => "#17a2b8",
-                _ => "#6c757d"
-            };
-        }
-
-        private string GetStatusBorderColor(string? statut)
-        {
-            return statut switch
-            {
-                "Confirmé" => "#1e7b34",
-                "En attente" => "#d39e00",
-                "Annulé" => "#bd2130",
-                "Terminé" => "#117a8b",
-                _ => "#545b62"
-            };
-        }
         #region ================ ESPACE PATIENT ================
 
-        /// <summary>
-        /// GET: RendezVous/MesRendezVous
-        /// Liste des RDV du patient connecté uniquement
-        /// </summary>
         [Authorize(Roles = "PATIENT")]
         public async Task<IActionResult> MesRendezVous(string? filtre)
         {
             var patientId = await GetCurrentUserIdAsync();
             if (patientId == 0) return RedirectToAction("Login", "Account");
 
-            // Requête de base - UNIQUEMENT les RDV du patient connecté
             var query = _context.RendezVous
                 .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
                 .Where(r => r.PatientId == patientId);
 
-            // Appliquer le filtre
             ViewBag.Filtre = filtre ?? "tous";
             switch (filtre)
             {
@@ -909,7 +900,6 @@ namespace GestionCabinetMedical.Controllers
 
             var mesRdv = await query.OrderByDescending(r => r.DateHeure).ToListAsync();
 
-            // Statistiques
             var tousRdv = await _context.RendezVous.Where(r => r.PatientId == patientId).ToListAsync();
             ViewBag.MesRdv = mesRdv;
             ViewBag.TotalRdv = tousRdv.Count;
@@ -917,7 +907,6 @@ namespace GestionCabinetMedical.Controllers
             ViewBag.Confirmes = tousRdv.Count(r => r.Statut == "Confirmé");
             ViewBag.Termines = tousRdv.Count(r => r.Statut == "Terminé");
 
-            // Prochain RDV
             ViewBag.ProchainRdv = await _context.RendezVous
                 .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
                 .Where(r => r.PatientId == patientId && r.DateHeure >= DateTime.Now && r.Statut != "Annulé")
@@ -927,29 +916,17 @@ namespace GestionCabinetMedical.Controllers
             return View();
         }
 
-        /// <summary>
-        /// GET: RendezVous/DemanderRendezVous
-        /// Formulaire de demande de RDV pour le patient
-        /// </summary>
         [Authorize(Roles = "PATIENT")]
         public async Task<IActionResult> DemanderRendezVous()
         {
             ViewBag.Medecins = await _context.Medecins
                 .Include(m => m.IdNavigation)
-                .Select(m => new {
-                    m.Id,
-                    Nom = m.IdNavigation.Nom,
-                    Prenom = m.IdNavigation.Prenom,
-                    m.Specialite
-                }).ToListAsync();
+                .Select(m => new { m.Id, Nom = m.IdNavigation.Nom, Prenom = m.IdNavigation.Prenom, m.Specialite })
+                .ToListAsync();
 
             return View(new RendezVou());
         }
 
-        /// <summary>
-        /// POST: RendezVous/DemanderRendezVous
-        /// Création d'une demande de RDV (statut "En attente")
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "PATIENT")]
@@ -959,20 +936,14 @@ namespace GestionCabinetMedical.Controllers
             if (patientId == 0) return RedirectToAction("Login", "Account");
 
             model.PatientId = patientId;
-            model.Statut = "En attente"; // Demande en attente de validation
+            model.Statut = "En attente";
 
-            // Validation
             if (model.DateHeure <= DateTime.Now)
-            {
                 ModelState.AddModelError("DateHeure", "La date doit être dans le futur.");
-            }
 
-            // Vérifier conflit
             var (hasConflict, msg) = await CheckRdvConflictAsync(model.MedecinId, patientId, model.DateHeure);
             if (hasConflict)
-            {
                 ModelState.AddModelError("DateHeure", msg);
-            }
 
             ModelState.Remove("PatientId");
             ModelState.Remove("Statut");
@@ -984,39 +955,29 @@ namespace GestionCabinetMedical.Controllers
                 _context.Add(model);
                 await _context.SaveChangesAsync();
 
-                // Notification
                 var rdvComplet = await _context.RendezVous
                     .Include(r => r.Medecin).ThenInclude(m => m.IdNavigation)
                     .FirstOrDefaultAsync(r => r.NumCom == model.NumCom);
 
-                if (rdvComplet != null && _notificationService != null)
+                if (rdvComplet != null)
                 {
                     var dateStr = rdvComplet.DateHeure.ToString("dd/MM/yyyy à HH:mm");
-                    var msgNotif = $"Nouvelle demande de RDV le {dateStr}";
-                    await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, "Confirmation", msgNotif, rdvComplet.MedecinId);
+                    await _notificationService.CreateNotificationAsync(rdvComplet.NumCom, "Confirmation",
+                        $"Nouvelle demande de RDV le {dateStr}", rdvComplet.MedecinId);
                 }
 
                 TempData["Success"] = "Votre demande de rendez-vous a été envoyée !";
                 return RedirectToAction(nameof(MesRendezVous));
             }
 
-            // Recharger les médecins en cas d'erreur
             ViewBag.Medecins = await _context.Medecins
                 .Include(m => m.IdNavigation)
-                .Select(m => new {
-                    m.Id,
-                    Nom = m.IdNavigation.Nom,
-                    Prenom = m.IdNavigation.Prenom,
-                    m.Specialite
-                }).ToListAsync();
+                .Select(m => new { m.Id, Nom = m.IdNavigation.Nom, Prenom = m.IdNavigation.Prenom, m.Specialite })
+                .ToListAsync();
 
             return View(model);
         }
 
-        /// <summary>
-        /// GET: RendezVous/ModifierMonRdv/5
-        /// Formulaire de modification pour le patient
-        /// </summary>
         [Authorize(Roles = "PATIENT")]
         public async Task<IActionResult> ModifierMonRdv(int? id)
         {
@@ -1029,7 +990,6 @@ namespace GestionCabinetMedical.Controllers
 
             if (rdv == null) return NotFound();
 
-            // Vérifier si modifiable
             if (rdv.DateHeure < DateTime.Now || rdv.Statut == "Annulé" || rdv.Statut == "Terminé")
             {
                 TempData["Error"] = "Ce rendez-vous ne peut plus être modifié.";
@@ -1039,10 +999,6 @@ namespace GestionCabinetMedical.Controllers
             return View(rdv);
         }
 
-        /// <summary>
-        /// POST: RendezVous/ModifierMonRdv/5
-        /// Modification du RDV par le patient
-        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "PATIENT")]
@@ -1051,43 +1007,29 @@ namespace GestionCabinetMedical.Controllers
             if (id != model.NumCom) return NotFound();
 
             var patientId = await GetCurrentUserIdAsync();
-
-            // Vérifier que c'est bien le RDV du patient
             var rdvOriginal = await _context.RendezVous.AsNoTracking()
                 .FirstOrDefaultAsync(r => r.NumCom == id && r.PatientId == patientId);
+
             if (rdvOriginal == null) return NotFound();
 
-            // Validation
             if (model.DateHeure <= DateTime.Now)
-            {
                 ModelState.AddModelError("DateHeure", "La date doit être dans le futur.");
-            }
 
             ModelState.Remove("Medecin");
             ModelState.Remove("Patient");
 
             if (ModelState.IsValid)
             {
-                try
-                {
-                    // Garder le patient et médecin originaux
-                    model.PatientId = patientId;
-                    model.MedecinId = rdvOriginal.MedecinId;
+                model.PatientId = patientId;
+                model.MedecinId = rdvOriginal.MedecinId;
 
-                    _context.Update(model);
-                    await _context.SaveChangesAsync();
+                _context.Update(model);
+                await _context.SaveChangesAsync();
 
-                    TempData["Success"] = "Votre rendez-vous a été modifié !";
-                    return RedirectToAction(nameof(MesRendezVous));
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!RendezVouExists(model.NumCom)) return NotFound();
-                    throw;
-                }
+                TempData["Success"] = "Votre rendez-vous a été modifié !";
+                return RedirectToAction(nameof(MesRendezVous));
             }
 
-            // Recharger le médecin en cas d'erreur
             model.Medecin = await _context.Medecins
                 .Include(m => m.IdNavigation)
                 .FirstOrDefaultAsync(m => m.Id == model.MedecinId);
@@ -1095,17 +1037,12 @@ namespace GestionCabinetMedical.Controllers
             return View(model);
         }
 
-        /// <summary>
-        /// POST: RendezVous/ConfirmerMonRdv
-        /// Le patient confirme sa présence (AJAX)
-        /// </summary>
         [HttpPost]
         [Authorize(Roles = "PATIENT")]
         public async Task<IActionResult> ConfirmerMonRdv(int id)
         {
             var patientId = await GetCurrentUserIdAsync();
-            var rdv = await _context.RendezVous
-                .FirstOrDefaultAsync(r => r.NumCom == id && r.PatientId == patientId);
+            var rdv = await _context.RendezVous.FirstOrDefaultAsync(r => r.NumCom == id && r.PatientId == patientId);
 
             if (rdv == null)
                 return Json(new { success = false, message = "Rendez-vous non trouvé" });
@@ -1122,28 +1059,19 @@ namespace GestionCabinetMedical.Controllers
             rdv.Statut = "Confirmé";
             await _context.SaveChangesAsync();
 
-            // Notification
-            if (_notificationService != null)
-            {
-                var dateStr = rdv.DateHeure.ToString("dd/MM/yyyy à HH:mm");
-                await _notificationService.CreateNotificationAsync(rdv.NumCom, "Confirmation",
-                    $"Le patient a confirmé sa présence pour le {dateStr}", rdv.MedecinId);
-            }
+            var dateStr = rdv.DateHeure.ToString("dd/MM/yyyy à HH:mm");
+            await _notificationService.CreateNotificationAsync(rdv.NumCom, "Confirmation",
+                $"Le patient a confirmé sa présence pour le {dateStr}", rdv.MedecinId);
 
             return Json(new { success = true, message = "Votre présence a été confirmée !" });
         }
 
-        /// <summary>
-        /// POST: RendezVous/AnnulerMonRdv
-        /// Le patient annule son RDV (AJAX)
-        /// </summary>
         [HttpPost]
         [Authorize(Roles = "PATIENT")]
         public async Task<IActionResult> AnnulerMonRdv(int id, string? motif)
         {
             var patientId = await GetCurrentUserIdAsync();
-            var rdv = await _context.RendezVous
-                .FirstOrDefaultAsync(r => r.NumCom == id && r.PatientId == patientId);
+            var rdv = await _context.RendezVous.FirstOrDefaultAsync(r => r.NumCom == id && r.PatientId == patientId);
 
             if (rdv == null)
                 return Json(new { success = false, message = "Rendez-vous non trouvé" });
@@ -1159,26 +1087,28 @@ namespace GestionCabinetMedical.Controllers
 
             rdv.Statut = "Annulé";
             if (!string.IsNullOrEmpty(motif))
-            {
                 rdv.Motif = (rdv.Motif ?? "") + $" [Annulé par patient: {motif}]";
-            }
 
             await _context.SaveChangesAsync();
 
-            // Notification
-            if (_notificationService != null)
-            {
-                var dateStr = rdv.DateHeure.ToString("dd/MM/yyyy à HH:mm");
-                var raisonTxt = string.IsNullOrEmpty(motif) ? "" : $" Raison: {motif}";
-                await _notificationService.CreateNotificationAsync(rdv.NumCom, "Annulation",
-                    $"Le patient a annulé le RDV du {dateStr}.{raisonTxt}", rdv.MedecinId);
-            }
+            var dateStr = rdv.DateHeure.ToString("dd/MM/yyyy à HH:mm");
+            var raisonTxt = string.IsNullOrEmpty(motif) ? "" : $" Raison: {motif}";
+            await _notificationService.CreateNotificationAsync(rdv.NumCom, "Annulation",
+                $"Le patient a annulé le RDV du {dateStr}.{raisonTxt}", rdv.MedecinId);
 
             return Json(new { success = true, message = "Votre rendez-vous a été annulé" });
         }
 
         #endregion
-        // HELPER METHOD pour les listes déroulantes
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        private bool RendezVouExists(int id)
+        {
+            return _context.RendezVous.Any(e => e.NumCom == id);
+        }
+
         private void PopulateDropdowns(object? selectedMedecin = null, object? selectedPatient = null)
         {
             var medecinsQuery = _context.Medecins
@@ -1200,7 +1130,5 @@ namespace GestionCabinetMedical.Controllers
             ViewData["MedecinId"] = new SelectList(medecinsQuery, "Id", "NomComplet", selectedMedecin);
             ViewData["PatientId"] = new SelectList(patientsQuery, "Id", "NomComplet", selectedPatient);
         }
-
     }
-
 }
