@@ -1,61 +1,229 @@
-﻿@model IEnumerable<GestionCabinetMedical.Models.Medecin>
+﻿@model GestionCabinetMedical.ViewModels.MedecinIndexViewModel
+@using GestionCabinetMedical.ViewModels
 
 @{
-    ViewData["Title"] = "Médecins";
+    ViewData["Title"] = "Gestion des Médecins";
 }
 
-<div class="page-header">
-    <h1><i class="fas fa-user-md"></i> Équipe Médicale</h1>
-</div>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-user-md text-primary me-2"></i>Équipe Médicale
+        </h2>
+        <a asp-action="Create" class="btn btn-success">
+            <i class="fas fa-plus me-1"></i>Nouveau Médecin
+        </a>
+    </div>
 
-<div class="mb-4">
-    <a asp-action="Create" class="btn btn-success btn-custom">
-        <i class="fas fa-plus-circle"></i> Nouveau Médecin
-    </a>
-</div>
-
-<div class="row">
-    @if (Model != null && Model.Any())
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
     {
-        @foreach (var item in Model)
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1">Total Médecins</h6>
+                            <h2 class="mb-0">@Model.TotalMedecins</h2>
+                        </div>
+                        <i class="fas fa-user-md fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1">Médecins Actifs</h6>
+                            <h2 class="mb-0">@Model.MedecinsActifs</h2>
+                        </div>
+                        <i class="fas fa-user-check fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase text-white-50 mb-1">Spécialités</h6>
+                            <h2 class="mb-0">@Model.SpecialitesDistinctes</h2>
+                        </div>
+                        <i class="fas fa-stethoscope fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form asp-action="Index" method="get" id="filterForm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-search me-1"></i>Recherche
+                        </label>
+                        <input type="text" name="searchTerm" class="form-control"
+                               placeholder="Nom, prénom, spécialité, email..."
+                               value="@Model.SearchTerm">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-stethoscope me-1"></i>Spécialité
+                        </label>
+                        <select name="specialite" class="form-select">
+                            <option value="">Toutes les spécialités</option>
+                            @foreach (var spec in Model.Specialites)
+                            {
+                                <option value="@spec" selected="@(Model.Specialite == spec ? "selected" : null)">@spec</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="fas fa-sort me-1"></i>Trier par
+                        </label>
+                        <select name="sortBy" class="form-select">
+                            <option value="nom" selected="@(Model.SortBy == "nom" ? "selected" : null)">Nom</option>
+                            <option value="specialite" selected="@(Model.SortBy == "specialite" ? "selected" : null)">Spécialité</option>
+                            <option value="rdv" selected="@(Model.SortBy == "rdv" ? "selected" : null)">Nb. RDV</option>
+                            <option value="dossiers" selected="@(Model.SortBy == "dossiers" ? "selected" : null)">Nb. Dossiers</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i>Filtrer
+                        </button>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.SearchTerm) || !string.IsNullOrEmpty(Model.Specialite))
+                {
+                    <div class="mt-3">
+                        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Réinitialiser les filtres
+                        </a>
+                    </div>
+                }
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des médecins en grille -->
+    <div class="row">
+        @if (!Model.Medecins.Any())
         {
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <div class="mb-3">
-                            <i class="fas fa-user-md fa-4x text-primary"></i>
-                        </div>
-                        <h5 class="card-title">Dr. @item.IdNavigation?.Nom @item.IdNavigation?.Prenom</h5>
-                        <p class="text-muted">
-                            <i class="fas fa-stethoscope"></i> @item.Specialite
-                        </p>
-                        <p class="card-text">
-                            <i class="fas fa-envelope"></i> @item.IdNavigation?.Email<br>
-                            <i class="fas fa-phone"></i> @item.IdNavigation?.Telephone
-                        </p>
-                        <div class="btn-group">
-                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-info">
-                                <i class="fas fa-eye"></i> Détails
-                            </a>
-                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </div>
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-user-md fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Aucun médecin trouvé</h5>
+                        <p class="text-muted mb-0">Essayez de modifier vos critères de recherche</p>
                     </div>
                 </div>
             </div>
         }
-    }
-    else
+        else
+        {
+            @foreach (var medecin in Model.Medecins)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-user-md fa-4x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Dr. @medecin.IdNavigation?.Nom @medecin.IdNavigation?.Prenom</h5>
+                            <p class="text-muted">
+                                <i class="fas fa-stethoscope"></i> @medecin.Specialite
+                            </p>
+                            <p class="card-text">
+                                <small>
+                                    <i class="fas fa-envelope"></i> @medecin.IdNavigation?.Email<br>
+                                    <i class="fas fa-phone"></i> @medecin.IdNavigation?.Telephone
+                                </small>
+                            </p>
+                            <div class="d-flex justify-content-around mb-2">
+                                <div>
+                                    <small class="text-muted">RDV</small>
+                                    <div class="fw-bold">@(medecin.RendezVous?.Count ?? 0)</div>
+                                </div>
+                                <div>
+                                    <small class="text-muted">Dossiers</small>
+                                    <div class="fw-bold">@(medecin.DossierMedicals?.Count ?? 0)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <div class="btn-group w-100">
+                                <a asp-action="Details" asp-route-id="@medecin.Id" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> Détails
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@medecin.Id" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@medecin.Id" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.Medecins.TotalCount > 0)
     {
-        <div class="col-12">
-            <div class="alert alert-info text-center">
-                <i class="fas fa-user-md fa-3x mb-3"></i>
-                <p>Aucun médecin enregistré</p>
-            </div>
+        <div class="card shadow-sm mt-4">
+            <div class="card-footer bg-white">
+                @await Html.PartialAsync("_Pagination", new PaginationPartialViewModel
+                {
+                    CurrentPage = Model.Medecins.CurrentPage,
+                        TotalPages = Model.Medecins.TotalPages,
+                        PageSize = Model.PageSize,
+                        TotalCount = Model.Medecins.TotalCount,
+                        ActionName = "Index",
+                        FormId = "pageSizeFormMedecins",
+                        RouteValues = new Dictionary<string, string?>
+                        {
+                        { "searchTerm", Model.SearchTerm },
+                        { "specialite", Model.Specialite },
+                        { "sortBy", Model.SortBy }
+                        }
+                        })
         </div>
-    }
+    </div>
+        }
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('select[name="specialite"], select[name="sortBy"]').change(function() {
+                $('#filterForm').submit();
+            });
+        });
+    </script>
+}

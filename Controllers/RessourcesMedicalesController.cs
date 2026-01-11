@@ -1,4 +1,5 @@
 ﻿using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -20,10 +21,78 @@ namespace GestionCabinetMedical.Controllers
             _context = context;
         }
 
-        // GET: RessourceMedicales
-        public async Task<IActionResult> Index()
+        // ============================================================
+        // GET: RessourceMedicales - WITH PAGINATION AND STOCK FILTERS
+        // ============================================================
+        public async Task<IActionResult> Index(
+            string? searchTerm,
+            string? stockFilter,
+            string? sortBy = "nom",
+            int page = 1,
+            int pageSize = 10)
         {
-            return View(await _context.RessourceMedicales.ToListAsync());
+            // Validate page size
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            var query = _context.RessourceMedicales.AsQueryable();
+
+            // Text search filtering
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(r => r.Nom != null && r.Nom.ToLower().Contains(term));
+            }
+
+            // Stock filtering
+            if (!string.IsNullOrWhiteSpace(stockFilter))
+            {
+                switch (stockFilter.ToLower())
+                {
+                    case "faible":
+                        query = query.Where(r => r.Quantite < 10);
+                        break;
+                    case "normal":
+                        query = query.Where(r => r.Quantite >= 10);
+                        break;
+                        // "tous" - no filter
+                }
+            }
+
+            // Calculate statistics (before pagination)
+            var allRessources = await _context.RessourceMedicales.ToListAsync();
+
+            var stats = new
+            {
+                Total = allRessources.Count,
+                StockFaible = allRessources.Count(r => r.Quantite < 10),
+                QuantiteTotale = allRessources.Sum(r => r.Quantite)
+            };
+
+            // Sorting
+            query = sortBy?.ToLower() switch
+            {
+                "quantite" => query.OrderBy(r => r.Quantite),
+                "quantite-desc" => query.OrderByDescending(r => r.Quantite),
+                _ => query.OrderBy(r => r.Nom)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<RessourceMedicale>.CreateAsync(query, page, pageSize);
+
+            var viewModel = new RessourceMedicaleIndexViewModel
+            {
+                RessourceMedicales = paginatedList,
+                TotalRessources = stats.Total,
+                RessourcesStockFaible = stats.StockFaible,
+                QuantiteTotale = stats.QuantiteTotale,
+                SearchTerm = searchTerm,
+                StockFilter = stockFilter,
+                SortBy = sortBy,
+                PageSize = pageSize
+            };
+
+            return View(viewModel);
         }
 
         // GET: RessourceMedicales/Details/5
@@ -51,8 +120,6 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // POST: RessourceMedicales/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Nom,Quantite")] RessourceMedicale ressourceMedicale)
@@ -61,6 +128,7 @@ namespace GestionCabinetMedical.Controllers
             {
                 _context.Add(ressourceMedicale);
                 await _context.SaveChangesAsync();
+                TempData["Success"] = "Ressource médicale ajoutée avec succès !";
                 return RedirectToAction(nameof(Index));
             }
             return View(ressourceMedicale);
@@ -83,8 +151,6 @@ namespace GestionCabinetMedical.Controllers
         }
 
         // POST: RessourceMedicales/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Nom,Quantite")] RessourceMedicale ressourceMedicale)
@@ -100,6 +166,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     _context.Update(ressourceMedicale);
                     await _context.SaveChangesAsync();
+                    TempData["Success"] = "Ressource médicale modifiée avec succès !";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -144,9 +211,9 @@ namespace GestionCabinetMedical.Controllers
             if (ressourceMedicale != null)
             {
                 _context.RessourceMedicales.Remove(ressourceMedicale);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Ressource médicale supprimée avec succès !";
             }
-
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 

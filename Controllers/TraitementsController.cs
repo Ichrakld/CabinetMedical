@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 
 namespace GestionCabinetMedical.Controllers
@@ -20,17 +21,80 @@ namespace GestionCabinetMedical.Controllers
             _context = context;
         }
 
-        // GET: Traitements
-        public async Task<IActionResult> Index()
+        // ============================================================
+        // GET: Traitements - WITH PAGINATION AND FILTERS
+        // ============================================================
+        public async Task<IActionResult> Index(
+            string? searchTerm,
+            string? sortBy = "recent",
+            int page = 1,
+            int pageSize = 10)
         {
-            // On charge la Consultation, puis le Dossier, puis le Patient pour avoir le contexte complet
-            var traitements = _context.Traitements
+            // Validate page size
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            // Base query with all necessary includes
+            var query = _context.Traitements
                 .Include(t => t.Consultation)
                     .ThenInclude(c => c.DossierMedical)
                         .ThenInclude(d => d.Patient)
-                            .ThenInclude(p => p.IdNavigation);
+                            .ThenInclude(p => p.IdNavigation)
+                .AsQueryable();
 
-            return View(await traitements.ToListAsync());
+            // Text search filtering
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(t =>
+                    (t.TypeTraitement != null && t.TypeTraitement.ToLower().Contains(term)) ||
+                    (t.Consultation != null && t.Consultation.DossierMedical != null &&
+                     t.Consultation.DossierMedical.Patient != null &&
+                     t.Consultation.DossierMedical.Patient.IdNavigation != null &&
+                     (t.Consultation.DossierMedical.Patient.IdNavigation.Nom.ToLower().Contains(term) ||
+                      t.Consultation.DossierMedical.Patient.IdNavigation.Prenom.ToLower().Contains(term)))
+                );
+            }
+
+            // Calculate statistics (before pagination)
+            var allTraitements = await _context.Traitements
+                .Include(t => t.Consultation)
+                .ToListAsync();
+
+            var dateLimite30j = DateTime.Now.AddDays(-30);
+            var stats = new
+            {
+                Total = allTraitements.Count,
+                Recents = allTraitements.Count(t =>
+                    t.Consultation != null && t.Consultation.DateConsultation >= dateLimite30j)
+            };
+
+            // Sorting
+            query = sortBy?.ToLower() switch
+            {
+                "recent" => query.OrderByDescending(t => t.Consultation != null ? t.Consultation.DateConsultation : DateTime.MinValue),
+                "ancien" => query.OrderBy(t => t.Consultation != null ? t.Consultation.DateConsultation : DateTime.MinValue),
+                "type" => query.OrderBy(t => t.TypeTraitement),
+                "patient" => query.OrderBy(t => t.Consultation != null && t.Consultation.DossierMedical != null &&
+                    t.Consultation.DossierMedical.Patient != null && t.Consultation.DossierMedical.Patient.IdNavigation != null ?
+                    t.Consultation.DossierMedical.Patient.IdNavigation.Nom : ""),
+                _ => query.OrderByDescending(t => t.NumPro)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<Traitement>.CreateAsync(query, page, pageSize);
+
+            var viewModel = new TraitementIndexViewModel
+            {
+                Traitements = paginatedList,
+                TotalTraitements = stats.Total,
+                TraitementsRecents = stats.Recents,
+                SearchTerm = searchTerm,
+                SortBy = sortBy,
+                PageSize = pageSize
+            };
+
+            return View(viewModel);
         }
 
         // GET: Traitements/Details/5
@@ -69,6 +133,7 @@ namespace GestionCabinetMedical.Controllers
             {
                 _context.Add(traitement);
                 await _context.SaveChangesAsync();
+                TempData["Success"] = "Traitement ajouté avec succès !";
                 return RedirectToAction(nameof(Index));
             }
             PopulateDropdowns(traitement.ConsultationId);
@@ -103,6 +168,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     _context.Update(traitement);
                     await _context.SaveChangesAsync();
+                    TempData["Success"] = "Traitement modifié avec succès !";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -141,8 +207,9 @@ namespace GestionCabinetMedical.Controllers
             if (traitement != null)
             {
                 _context.Traitements.Remove(traitement);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Traitement supprimé avec succès !";
             }
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 

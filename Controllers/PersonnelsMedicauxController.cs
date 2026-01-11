@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 
 namespace GestionCabinetMedical.Controllers
@@ -19,11 +20,78 @@ namespace GestionCabinetMedical.Controllers
             _context = context;
         }
 
-        // GET: PersonnelsMedicaux
-        public async Task<IActionResult> Index()
+        // ============================================================
+        // GET: PersonnelsMedicaux - WITH PAGINATION AND FILTERS
+        // ============================================================
+        public async Task<IActionResult> Index(
+            string? searchTerm,
+            string? fonction,
+            string? sortBy = "nom",
+            int page = 1,
+            int pageSize = 10)
         {
-            // Pas de .Include() nécessaire car pas de relation
-            return View(await _context.PersonnelMedicals.ToListAsync());
+            // Validate page size
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            var query = _context.PersonnelMedicals.AsQueryable();
+
+            // Text search filtering
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(p =>
+                    (p.Nom != null && p.Nom.ToLower().Contains(term)) ||
+                    (p.Fonction != null && p.Fonction.ToLower().Contains(term))
+                );
+            }
+
+            // Function filtering
+            if (!string.IsNullOrWhiteSpace(fonction))
+            {
+                query = query.Where(p => p.Fonction == fonction);
+            }
+
+            // Calculate statistics (before pagination)
+            var allPersonnel = await _context.PersonnelMedicals.ToListAsync();
+
+            var stats = new
+            {
+                Total = allPersonnel.Count,
+                FonctionsDistinctes = allPersonnel.Select(p => p.Fonction).Distinct().Count()
+            };
+
+            // Get list of functions for filter dropdown
+            var fonctions = await _context.PersonnelMedicals
+                .Where(p => !string.IsNullOrEmpty(p.Fonction))
+                .Select(p => p.Fonction)
+                .Distinct()
+                .OrderBy(f => f)
+                .ToListAsync();
+
+            // Sorting
+            query = sortBy?.ToLower() switch
+            {
+                "fonction" => query.OrderBy(p => p.Fonction).ThenBy(p => p.Nom),
+                _ => query.OrderBy(p => p.Nom)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<PersonnelMedical>.CreateAsync(query, page, pageSize);
+
+            var viewModel = new PersonnelMedicalIndexViewModel
+            {
+                PersonnelMedicals = paginatedList,
+                TotalPersonnel = stats.Total,
+                FonctionsDistinctes = stats.FonctionsDistinctes,
+                SearchTerm = searchTerm,
+                Fonction = fonction,
+                SortBy = sortBy,
+                PageSize = pageSize,
+                Fonctions = fonctions
+            };
+
+            return View(viewModel);
         }
 
         // GET: PersonnelsMedicaux/Details/5
@@ -54,6 +122,7 @@ namespace GestionCabinetMedical.Controllers
             {
                 _context.Add(personnelMedical);
                 await _context.SaveChangesAsync();
+                TempData["Success"] = "Personnel médical ajouté avec succès !";
                 return RedirectToAction(nameof(Index));
             }
             return View(personnelMedical);
@@ -83,6 +152,7 @@ namespace GestionCabinetMedical.Controllers
                 {
                     _context.Update(personnelMedical);
                     await _context.SaveChangesAsync();
+                    TempData["Success"] = "Personnel médical modifié avec succès !";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -116,8 +186,9 @@ namespace GestionCabinetMedical.Controllers
             if (personnelMedical != null)
             {
                 _context.PersonnelMedicals.Remove(personnelMedical);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Personnel médical supprimé avec succès !";
             }
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 

@@ -1,5 +1,6 @@
 ﻿using GestionCabinetMedical.Models;
 using GestionCabinetMedical.Areas.Identity.Data;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,11 +25,90 @@ namespace GestionCabinetMedical.Controllers
             _userManager = userManager;
         }
 
-        // GET: Medecins
-        public async Task<IActionResult> Index()
+        // ============================================================
+        // GET: Medecins - WITH PAGINATION, FILTERS, AND STATISTICS
+        // ============================================================
+        public async Task<IActionResult> Index(
+            string? searchTerm,
+            string? specialite,
+            string? sortBy = "nom",
+            int page = 1,
+            int pageSize = 10)
         {
-            var bdCabinetMedicalContext = _context.Medecins.Include(m => m.IdNavigation);
-            return View(await bdCabinetMedicalContext.ToListAsync());
+            // Validate page size
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            var query = _context.Medecins
+                .Include(m => m.IdNavigation)
+                .Include(m => m.RendezVous)
+                .Include(m => m.DossierMedicals)
+                .AsQueryable();
+
+            // Text search filtering
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(m =>
+                    (m.IdNavigation.Nom != null && m.IdNavigation.Nom.ToLower().Contains(term)) ||
+                    (m.IdNavigation.Prenom != null && m.IdNavigation.Prenom.ToLower().Contains(term)) ||
+                    (m.Specialite != null && m.Specialite.ToLower().Contains(term)) ||
+                    (m.IdNavigation.Email != null && m.IdNavigation.Email.ToLower().Contains(term))
+                );
+            }
+
+            // Specialty filtering
+            if (!string.IsNullOrWhiteSpace(specialite))
+            {
+                query = query.Where(m => m.Specialite == specialite);
+            }
+
+            // Calculate statistics (before pagination)
+            var allMedecins = await _context.Medecins
+                .Include(m => m.IdNavigation)
+                .ToListAsync();
+
+            var stats = new
+            {
+                Total = allMedecins.Count,
+                Actifs = allMedecins.Count(m => m.IdNavigation?.EstActif == true),
+                SpecialitesDistinctes = allMedecins.Select(m => m.Specialite).Distinct().Count()
+            };
+
+            // Get list of specialties for filter dropdown
+            var specialites = await _context.Medecins
+                .Where(m => !string.IsNullOrEmpty(m.Specialite))
+                .Select(m => m.Specialite)
+                .Distinct()
+                .OrderBy(s => s)
+                .ToListAsync();
+
+            // Sorting
+            query = sortBy?.ToLower() switch
+            {
+                "specialite" => query.OrderBy(m => m.Specialite),
+                "rdv" => query.OrderByDescending(m => m.RendezVous.Count),
+                "dossiers" => query.OrderByDescending(m => m.DossierMedicals.Count),
+                _ => query.OrderBy(m => m.IdNavigation.Nom).ThenBy(m => m.IdNavigation.Prenom)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<Medecin>.CreateAsync(query, page, pageSize);
+
+            var viewModel = new MedecinIndexViewModel
+            {
+                Medecins = paginatedList,
+                TotalMedecins = stats.Total,
+                MedecinsActifs = stats.Actifs,
+                SpecialitesDistinctes = stats.SpecialitesDistinctes,
+                SearchTerm = searchTerm,
+                Specialite = specialite,
+                SortBy = sortBy,
+                PageSize = pageSize,
+                Specialites = specialites
+            };
+
+            return View(viewModel);
         }
 
         // GET: Medecins/Details/5
