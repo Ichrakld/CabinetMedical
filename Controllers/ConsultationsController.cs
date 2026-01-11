@@ -1,4 +1,5 @@
 ﻿using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -20,18 +21,105 @@ namespace GestionCabinetMedical.Controllers
             _context = context;
         }
 
-        // GET: Consultations
-        public async Task<IActionResult> Index()
+        // GET: Consultations - AVEC PAGINATION
+        public async Task<IActionResult> Index(
+            string searchTerm,
+            DateTime? dateDebut,
+            DateTime? dateFin,
+            int? dossierId,
+            string sortBy = "date",
+            string sortOrder = "desc",
+            int page = 1,
+            int pageSize = 10)
         {
-            var consultations = await _context.Consultations
+            // Valider la taille de page
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            var query = _context.Consultations
                 .Include(c => c.DossierMedical)
                     .ThenInclude(d => d.Patient)
                         .ThenInclude(p => p.IdNavigation)
                 .Include(c => c.Traitements)
-                .OrderByDescending(c => c.DateConsultation)
+                .AsQueryable();
+
+            // Filtrage par recherche textuelle
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(c =>
+                    (c.Diagnostic != null && c.Diagnostic.ToLower().Contains(term)) ||
+                    (c.Notes != null && c.Notes.ToLower().Contains(term)) ||
+                    (c.DossierMedical.Patient.IdNavigation.Nom != null &&
+                     c.DossierMedical.Patient.IdNavigation.Nom.ToLower().Contains(term)) ||
+                    (c.DossierMedical.Patient.IdNavigation.Prenom != null &&
+                     c.DossierMedical.Patient.IdNavigation.Prenom.ToLower().Contains(term))
+                );
+            }
+
+            // Filtrage par dates
+            if (dateDebut.HasValue)
+                query = query.Where(c => c.DateConsultation.Date >= dateDebut.Value.Date);
+
+            if (dateFin.HasValue)
+                query = query.Where(c => c.DateConsultation.Date <= dateFin.Value.Date);
+
+            // Filtrage par dossier
+            if (dossierId.HasValue)
+                query = query.Where(c => c.DossierMedicalId == dossierId.Value);
+
+            // Statistiques (avant pagination)
+            var totalConsultations = await _context.Consultations.CountAsync();
+            var consultationsAujourdhui = await _context.Consultations
+                .CountAsync(c => c.DateConsultation.Date == DateTime.Today);
+            var avecDiagnostic = await _context.Consultations
+                .CountAsync(c => !string.IsNullOrEmpty(c.Diagnostic));
+            var totalTraitements = await _context.Consultations
+                .SelectMany(c => c.Traitements)
+                .CountAsync();
+
+            // Tri
+            query = (sortBy?.ToLower(), sortOrder?.ToLower()) switch
+            {
+                ("date", "asc") => query.OrderBy(c => c.DateConsultation),
+                ("date", "desc") => query.OrderByDescending(c => c.DateConsultation),
+                ("patient", "asc") => query.OrderBy(c => c.DossierMedical.Patient.IdNavigation.Nom),
+                ("patient", "desc") => query.OrderByDescending(c => c.DossierMedical.Patient.IdNavigation.Nom),
+                ("dossier", "asc") => query.OrderBy(c => c.DossierMedicalId),
+                ("dossier", "desc") => query.OrderByDescending(c => c.DossierMedicalId),
+                _ => query.OrderByDescending(c => c.DateConsultation)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<Consultation>.CreateAsync(query, page, pageSize);
+
+            // Liste des dossiers pour le filtre
+            var dossiers = await _context.DossierMedicals
+                .Include(d => d.Patient)
+                    .ThenInclude(p => p.IdNavigation)
+                .Select(d => new
+                {
+                    d.NumDossier,
+                    PatientNom = d.Patient.IdNavigation.Nom + " " + d.Patient.IdNavigation.Prenom
+                })
                 .ToListAsync();
 
-            return View(consultations);
+            ViewBag.Dossiers = new SelectList(dossiers, "NumDossier", "PatientNom");
+            ViewBag.SearchTerm = searchTerm;
+            ViewBag.DateDebut = dateDebut;
+            ViewBag.DateFin = dateFin;
+            ViewBag.DossierId = dossierId;
+            ViewBag.SortBy = sortBy;
+            ViewBag.SortOrder = sortOrder;
+            ViewBag.PageSize = pageSize;
+
+            // Statistiques
+            ViewBag.TotalConsultations = totalConsultations;
+            ViewBag.ConsultationsAujourdhui = consultationsAujourdhui;
+            ViewBag.AvecDiagnostic = avecDiagnostic;
+            ViewBag.TotalTraitements = totalTraitements;
+
+            return View(paginatedList);
         }
 
         // GET: Consultations/Details/5
@@ -59,7 +147,6 @@ namespace GestionCabinetMedical.Controllers
         {
             PopulateDropdowns(dossierId);
 
-            // Définir la date par défaut à maintenant
             var consultation = new Consultation
             {
                 DateConsultation = DateTime.Now
@@ -72,7 +159,6 @@ namespace GestionCabinetMedical.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("NumDetail,DateConsultation,Diagnostic,Notes,DossierMedicalId")] Consultation consultation)
         {
-            // FIX: Remove validation for the navigation property
             ModelState.Remove("DossierMedical");
 
             if (ModelState.IsValid)
@@ -107,7 +193,6 @@ namespace GestionCabinetMedical.Controllers
         {
             if (id != consultation.NumDetail) return NotFound();
 
-            // FIX: Remove validation here too
             ModelState.Remove("DossierMedical");
 
             if (ModelState.IsValid)
@@ -157,7 +242,6 @@ namespace GestionCabinetMedical.Controllers
 
             if (consultation != null)
             {
-                // Supprimer d'abord les traitements associés
                 if (consultation.Traitements?.Any() == true)
                 {
                     _context.Traitements.RemoveRange(consultation.Traitements);
@@ -175,7 +259,6 @@ namespace GestionCabinetMedical.Controllers
             return _context.Consultations.Any(e => e.NumDetail == id);
         }
 
-        // HELPER METHOD pour afficher "Dossier N°X - Nom Patient"
         private void PopulateDropdowns(object selectedDossier = null)
         {
             var dossierQuery = _context.DossierMedicals

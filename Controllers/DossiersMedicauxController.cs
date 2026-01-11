@@ -1,4 +1,5 @@
 ﻿using GestionCabinetMedical.Models;
+using GestionCabinetMedical.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -20,19 +21,95 @@ namespace GestionCabinetMedical.Controllers
             _context = context;
         }
 
-        // GET: DossiersMedicaux
-        public async Task<IActionResult> Index()
+        // GET: DossiersMedicaux - AVEC PAGINATION
+        public async Task<IActionResult> Index(
+            string searchTerm,
+            int? medecinId,
+            int? patientId,
+            bool? avecAllergies,
+            string sortBy = "numero",
+            string sortOrder = "desc",
+            int page = 1,
+            int pageSize = 10)
         {
-            var dossiers = await _context.DossierMedicals
+            // Validation taille de page
+            if (!new[] { 5, 10, 25, 50 }.Contains(pageSize))
+                pageSize = 10;
+
+            var query = _context.DossierMedicals
                 .Include(d => d.Medecin)
                     .ThenInclude(m => m.IdNavigation)
                 .Include(d => d.Patient)
                     .ThenInclude(p => p.IdNavigation)
                 .Include(d => d.Consultations)
-                .OrderByDescending(d => d.NumDossier)
+                .AsQueryable();
+
+            // Filtrage par recherche textuelle
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.ToLower();
+                query = query.Where(d =>
+                    (d.Patient.IdNavigation.Nom != null && d.Patient.IdNavigation.Nom.ToLower().Contains(term)) ||
+                    (d.Patient.IdNavigation.Prenom != null && d.Patient.IdNavigation.Prenom.ToLower().Contains(term)) ||
+                    (d.GroupeSanguin != null && d.GroupeSanguin.ToLower().Contains(term)) ||
+                    (d.Allergies != null && d.Allergies.ToLower().Contains(term))
+                );
+            }
+
+            // Filtrage par médecin
+            if (medecinId.HasValue)
+                query = query.Where(d => d.MedecinId == medecinId.Value);
+
+            // Filtrage par patient
+            if (patientId.HasValue)
+                query = query.Where(d => d.PatientId == patientId.Value);
+
+            // Filtrage par allergies
+            if (avecAllergies.HasValue && avecAllergies.Value)
+                query = query.Where(d => !string.IsNullOrEmpty(d.Allergies));
+
+            // Statistiques (avant pagination)
+            var totalDossiers = await _context.DossierMedicals.CountAsync();
+            var avecAllergiesCount = await _context.DossierMedicals.CountAsync(d => !string.IsNullOrEmpty(d.Allergies));
+            var avecAntecedents = await _context.DossierMedicals.CountAsync(d => !string.IsNullOrEmpty(d.AntecedentsMedicaux));
+            var totalConsultations = await _context.Consultations.CountAsync();
+
+            // Tri
+            query = (sortBy?.ToLower(), sortOrder?.ToLower()) switch
+            {
+                ("numero", "asc") => query.OrderBy(d => d.NumDossier),
+                ("numero", "desc") => query.OrderByDescending(d => d.NumDossier),
+                ("patient", "asc") => query.OrderBy(d => d.Patient.IdNavigation.Nom),
+                ("patient", "desc") => query.OrderByDescending(d => d.Patient.IdNavigation.Nom),
+                ("medecin", "asc") => query.OrderBy(d => d.Medecin.IdNavigation.Nom),
+                ("medecin", "desc") => query.OrderByDescending(d => d.Medecin.IdNavigation.Nom),
+                _ => query.OrderByDescending(d => d.NumDossier)
+            };
+
+            // Pagination
+            var paginatedList = await PaginatedList<DossierMedical>.CreateAsync(query, page, pageSize);
+
+            // Listes pour les filtres
+            var medecins = await _context.Medecins
+                .Include(m => m.IdNavigation)
+                .Select(m => new { m.Id, NomComplet = "Dr. " + m.IdNavigation.Nom + " " + m.IdNavigation.Prenom })
                 .ToListAsync();
 
-            return View(dossiers);
+            ViewBag.Medecins = new SelectList(medecins, "Id", "NomComplet");
+            ViewBag.SearchTerm = searchTerm;
+            ViewBag.MedecinId = medecinId;
+            ViewBag.PatientId = patientId;
+            ViewBag.AvecAllergiesFiltre = avecAllergies;  // Pour le filtre (bool)
+            ViewBag.SortBy = sortBy;
+            ViewBag.SortOrder = sortOrder;
+
+            // Statistiques
+            ViewBag.TotalDossiers = totalDossiers;
+            ViewBag.AvecAllergies = avecAllergiesCount;  // Pour la statistique (int)
+            ViewBag.AvecAntecedents = avecAntecedents;
+            ViewBag.TotalConsultations = totalConsultations;
+
+            return View(paginatedList);
         }
 
         // GET: DossiersMedicaux/Details/5

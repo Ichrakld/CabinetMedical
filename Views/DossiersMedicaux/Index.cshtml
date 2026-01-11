@@ -1,4 +1,5 @@
-﻿@model IEnumerable<GestionCabinetMedical.Models.DossierMedical>
+﻿@model GestionCabinetMedical.ViewModels.PaginatedList<GestionCabinetMedical.Models.DossierMedical>
+@using GestionCabinetMedical.ViewModels
 
 @{
     ViewData["Title"] = "Dossiers Médicaux";
@@ -42,7 +43,7 @@
         <div class="card bg-info text-white">
             <div class="card-body text-center">
                 <i class="fas fa-folder fa-2x mb-2"></i>
-                <h3>@Model.Count()</h3>
+                <h3>@ViewBag.TotalDossiers</h3>
                 <small>Total Dossiers</small>
             </div>
         </div>
@@ -51,7 +52,7 @@
         <div class="card bg-warning text-dark">
             <div class="card-body text-center">
                 <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                <h3>@Model.Count(d => !string.IsNullOrEmpty(d.Allergies))</h3>
+                <h3>@ViewBag.AvecAllergies</h3>
                 <small>Avec Allergies</small>
             </div>
         </div>
@@ -60,7 +61,7 @@
         <div class="card bg-primary text-white">
             <div class="card-body text-center">
                 <i class="fas fa-history fa-2x mb-2"></i>
-                <h3>@Model.Count(d => !string.IsNullOrEmpty(d.AntecedentsMedicaux))</h3>
+                <h3>@ViewBag.AvecAntecedents</h3>
                 <small>Avec Antécédents</small>
             </div>
         </div>
@@ -69,10 +70,116 @@
         <div class="card bg-success text-white">
             <div class="card-body text-center">
                 <i class="fas fa-stethoscope fa-2x mb-2"></i>
-                <h3>@Model.Sum(d => d.Consultations != null ? d.Consultations.Count : 0)</h3>
+                <h3>@ViewBag.TotalConsultations</h3>
                 <small>Total Consultations</small>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" id="filterForm">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-search"></i> Recherche
+                    </label>
+                    <input type="text" name="searchTerm" class="form-control"
+                           placeholder="Patient, groupe sanguin, allergies..."
+                           value="@ViewBag.SearchTerm">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-user-md"></i> Médecin
+                    </label>
+                    <select name="medecinId" class="form-select">
+                        <option value="">Tous les médecins</option>
+                        @if (ViewBag.Medecins != null)
+                        {
+                            foreach (var item in (Microsoft.AspNetCore.Mvc.Rendering.SelectList)ViewBag.Medecins)
+                            {
+                                if (ViewBag.MedecinId?.ToString() == item.Value)
+                                {
+                                    <option value="@item.Value" selected>@item.Text</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="fas fa-filter"></i> Allergies
+                    </label>
+                    <select name="avecAllergies" class="form-select">
+                        <option value="">Tous</option>
+                        @if (ViewBag.AvecAllergiesFiltre == true)
+                        {
+                            <option value="true" selected>Avec allergies</option>
+                        }
+                        else
+                        {
+                            <option value="true">Avec allergies</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="fas fa-sort"></i> Trier par
+                    </label>
+                    <select name="sortBy" class="form-select">
+                        @{
+                            var currentSort = ViewBag.SortBy as string ?? "numero";
+                        }
+                        @if (currentSort == "numero")
+                        {
+                            <option value="numero" selected>N° Dossier</option>
+                            <option value="patient">Patient</option>
+                            <option value="medecin">Médecin</option>
+                        }
+                        else if (currentSort == "patient")
+                        {
+                            <option value="numero">N° Dossier</option>
+                            <option value="patient" selected>Patient</option>
+                            <option value="medecin">Médecin</option>
+                        }
+                        else if (currentSort == "medecin")
+                        {
+                            <option value="numero">N° Dossier</option>
+                            <option value="patient">Patient</option>
+                            <option value="medecin" selected>Médecin</option>
+                        }
+                        else
+                        {
+                            <option value="numero" selected>N° Dossier</option>
+                            <option value="patient">Patient</option>
+                            <option value="medecin">Médecin</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrer
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(ViewBag.SearchTerm) || ViewBag.MedecinId != null || ViewBag.AvecAllergiesFiltre != null)
+            {
+                <div class="mt-3">
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times"></i> Réinitialiser
+                    </a>
+                    <span class="ms-2 text-muted">
+                        @Model.TotalCount résultat(s) trouvé(s)
+                    </span>
+                </div>
+            }
+        </form>
     </div>
 </div>
 
@@ -213,4 +320,40 @@
             </table>
         </div>
     </div>
+
+    <!-- Pagination -->
+    @if (Model.TotalCount > 0)
+    {
+        <div class="card-footer bg-white">
+            @await Html.PartialAsync("_Pagination", new PaginationPartialViewModel
+            {
+                CurrentPage = Model.CurrentPage,
+                TotalPages = Model.TotalPages,
+                PageSize = Model.PageSize,
+                TotalCount = Model.TotalCount,
+                ActionName = "Index",
+                FormId = "pageSizeFormDossiers",
+                RouteValues = new Dictionary<string, string?>
+                {
+                { "searchTerm", ViewBag.SearchTerm },
+                { "medecinId", ViewBag.MedecinId?.ToString() },
+                { "patientId", ViewBag.PatientId?.ToString() },
+                { "avecAllergies", ViewBag.AvecAllergiesFiltre?.ToString() },
+                { "sortBy", ViewBag.SortBy },
+                { "sortOrder", ViewBag.SortOrder }
+                }
+                })
+    </div>
+        }
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Auto-submit on select change
+            $('select[name="medecinId"], select[name="avecAllergies"], select[name="sortBy"]').change(function() {
+                $('#filterForm').submit();
+            });
+        });
+    </script>
+}
